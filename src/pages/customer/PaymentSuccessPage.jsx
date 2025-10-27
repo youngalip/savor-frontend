@@ -1,18 +1,20 @@
+// PaymentSuccessPage.jsx - UPDATED untuk handle Midtrans callback
+
 import React, { useState, useEffect } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import { CheckCircle, Mail, Download, Home, AlertCircle, Clock } from 'lucide-react'
 import { formatCurrency } from '../../utils/formatters'
 import useCartStore from '../../store/useCartStore'
-import { paymentService } from '../../services/paymentService'
 import { orderService } from '../../services/orderService'
 
 const PaymentSuccessPage = () => {
   const navigate = useNavigate()
   const location = useLocation()
+  const [searchParams] = useSearchParams()
   const { completeOrder, tableInfo } = useCartStore()
   
   // State
-  const [paymentStatus, setPaymentStatus] = useState('verifying') // verifying, success, failed, pending
+  const [paymentStatus, setPaymentStatus] = useState('verifying')
   const [orderData, setOrderData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -25,78 +27,68 @@ const PaymentSuccessPage = () => {
     try {
       setLoading(true)
       
-      // Check if this is a payment callback
-      if (paymentService.isPaymentCallback()) {
-        console.log('🔄 Processing payment callback...')
-        
-        // Parse callback parameters
-        const callbackParams = paymentService.parsePaymentCallback()
-        console.log('Callback params:', callbackParams)
-        
-        // Verify payment with backend
-        const finishResult = await paymentService.finishPayment(callbackParams)
-        
-        if (finishResult.success) {
-          // Get full order details
-          const orderResult = await orderService.getOrder(finishResult.data.orderUuid)
-          
-          if (orderResult.success) {
-            setOrderData(orderResult.data)
-            setPaymentStatus('success')
-            
-            // Clear cart since payment is successful
-            completeOrder()
-          } else {
-            setError('Order not found')
-            setPaymentStatus('failed')
-          }
-        } else {
-          setError(finishResult.error)
-          setPaymentStatus('failed')
-        }
-      } else {
-        // Check for data from navigation state or localStorage
-        let paymentData = location.state
-        
-        if (!paymentData) {
-          const pendingOrder = localStorage.getItem('pending_order')
-          if (pendingOrder) {
-            paymentData = JSON.parse(pendingOrder)
-            localStorage.removeItem('pending_order')
-          }
-        }
-        
-        if (paymentData && paymentData.orderUuid) {
-          console.log('📄 Loading order details...')
-          
-          // Get order details
-          const orderResult = await orderService.getOrder(paymentData.orderUuid)
-          
-          if (orderResult.success) {
-            setOrderData({
-              ...orderResult.data,
-              email: paymentData.email,
-              paymentMethod: paymentData.paymentMethod
-            })
-            
-            // Determine status based on payment status
-            if (orderResult.data.paymentStatus === 'Paid') {
-              setPaymentStatus('success')
-              completeOrder()
-            } else if (orderResult.data.paymentStatus === 'Pending') {
-              setPaymentStatus('pending')
-            } else {
-              setPaymentStatus('failed')
-            }
-          } else {
-            setError('Order not found')
-            setPaymentStatus('failed')
-          }
-        } else {
-          setError('No payment information found')
-          setPaymentStatus('failed')
+      // ✅ CHECK 1: Query params dari Midtrans callback
+      const orderIdFromUrl = searchParams.get('order_id')
+      const transactionStatus = searchParams.get('transaction_status')
+      const statusCode = searchParams.get('status_code')
+      
+      console.log('Payment callback params:', {
+        orderIdFromUrl,
+        transactionStatus,
+        statusCode
+      })
+
+      let orderUuid = orderIdFromUrl
+
+      // ✅ CHECK 2: Navigation state (dari frontend redirect)
+      if (!orderUuid && location.state?.orderUuid) {
+        orderUuid = location.state.orderUuid
+        console.log('Order UUID from navigation state:', orderUuid)
+      }
+
+      // ✅ CHECK 3: LocalStorage (fallback)
+      if (!orderUuid) {
+        const pendingOrder = localStorage.getItem('pending_order')
+        if (pendingOrder) {
+          const parsed = JSON.parse(pendingOrder)
+          orderUuid = parsed.orderUuid
+          console.log('Order UUID from localStorage:', orderUuid)
+          localStorage.removeItem('pending_order')
         }
       }
+
+      if (!orderUuid) {
+        throw new Error('No order information found')
+      }
+
+      // Get order details dari backend
+      console.log('📄 Loading order details for:', orderUuid)
+      const orderResult = await orderService.getOrder(orderUuid)
+      
+      if (!orderResult.success) {
+        throw new Error('Order not found')
+      }
+
+      // Set order data
+      const order = orderResult.data
+      setOrderData({
+        ...order,
+        email: order.customer?.email || location.state?.email,
+        paymentMethod: location.state?.paymentMethod || 'midtrans'
+      })
+
+      // Determine payment status
+      console.log('Order payment status:', order.paymentStatus)
+      
+      if (order.paymentStatus === 'Paid') {
+        setPaymentStatus('success')
+        completeOrder() // Clear cart
+      } else if (order.paymentStatus === 'Pending') {
+        setPaymentStatus('pending')
+      } else {
+        setPaymentStatus('failed')
+      }
+
     } catch (error) {
       console.error('❌ Payment verification error:', error)
       setError(error.message || 'Payment verification failed')
@@ -106,23 +98,20 @@ const PaymentSuccessPage = () => {
     }
   }
 
-  const getPaymentMethodName = (method) => {
-    const methods = paymentService.getPaymentMethods()
-    const found = methods.find(m => m.id === method)
-    return found ? found.name : method
-  }
-
   const handleBackToMenu = () => {
     navigate('/')
   }
 
   const handleDownloadReceipt = () => {
-    // In real app, this would generate and download PDF receipt
     alert('Digital receipt will be sent to your email within a few minutes')
   }
 
   const handleRetryPayment = () => {
     navigate('/checkout')
+  }
+
+  const handleCheckStatus = () => {
+    window.location.reload()
   }
 
   // Loading state
@@ -219,16 +208,6 @@ const PaymentSuccessPage = () => {
                   </div>
                 )}
                 
-                {/* Payment Method */}
-                {orderData.paymentMethod && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Payment Method</span>
-                    <span className="font-medium text-gray-900">
-                      {getPaymentMethodName(orderData.paymentMethod)}
-                    </span>
-                  </div>
-                )}
-                
                 {/* Payment Status */}
                 <div className="flex justify-between">
                   <span className="text-gray-600">Payment Status</span>
@@ -240,6 +219,30 @@ const PaymentSuccessPage = () => {
                     {orderData.paymentStatus}
                   </span>
                 </div>
+
+                {/* Breakdown */}
+                {orderData.breakdown && (
+                  <>
+                    <div className="border-t border-cream-200 pt-4 space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Subtotal</span>
+                        <span className="text-gray-900">{formatCurrency(orderData.breakdown.subtotal)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">
+                          Service Charge ({orderData.breakdown.serviceCharge.percentage})
+                        </span>
+                        <span className="text-gray-900">{formatCurrency(orderData.breakdown.serviceCharge.amount)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">
+                          Tax ({orderData.breakdown.tax.percentage})
+                        </span>
+                        <span className="text-gray-900">{formatCurrency(orderData.breakdown.tax.amount)}</span>
+                      </div>
+                    </div>
+                  </>
+                )}
                 
                 {/* Total */}
                 <div className="border-t border-cream-200 pt-4">
@@ -300,40 +303,28 @@ const PaymentSuccessPage = () => {
         {/* Action Buttons */}
         <div className="space-y-3">
           {paymentStatus === 'success' && (
-            <>
-              <button
-                onClick={handleBackToMenu}
-                className="w-full bg-primary-500 hover:bg-primary-600 text-white font-bold py-4 rounded-2xl transition-colors duration-200 flex items-center justify-center space-x-2"
-              >
-                <Home className="w-5 h-5" />
-                <span>Back to Menu</span>
-              </button>
-              
-              {orderData?.uuid && (
-                <button
-                  onClick={() => navigate(`/order-status/${orderData.uuid}`)}
-                  className="w-full bg-cream-100 hover:bg-cream-200 text-gray-700 font-bold py-4 rounded-2xl transition-colors duration-200 border border-cream-200"
-                >
-                  Track Order
-                </button>
-              )}
-            </>
+            <button
+              onClick={handleBackToMenu}
+              className="w-full bg-primary-500 hover:bg-primary-600 text-white font-bold py-4 rounded-2xl transition-colors duration-200 flex items-center justify-center space-x-2"
+            >
+              <Home className="w-5 h-5" />
+              <span>Back to Menu</span>
+            </button>
           )}
           
           {paymentStatus === 'pending' && (
             <>
               <button
-                onClick={handleBackToMenu}
+                onClick={handleCheckStatus}
                 className="w-full bg-primary-500 hover:bg-primary-600 text-white font-bold py-4 rounded-2xl transition-colors duration-200"
               >
-                Back to Menu
+                Check Payment Status
               </button>
-              
               <button
-                onClick={() => window.location.reload()}
+                onClick={handleBackToMenu}
                 className="w-full bg-cream-100 hover:bg-cream-200 text-gray-700 font-bold py-4 rounded-2xl transition-colors duration-200 border border-cream-200"
               >
-                Check Payment Status
+                Back to Menu
               </button>
             </>
           )}
@@ -346,7 +337,6 @@ const PaymentSuccessPage = () => {
               >
                 Try Payment Again
               </button>
-              
               <button
                 onClick={handleBackToMenu}
                 className="w-full bg-cream-100 hover:bg-cream-200 text-gray-700 font-bold py-4 rounded-2xl transition-colors duration-200 border border-cream-200"

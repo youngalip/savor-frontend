@@ -20,13 +20,13 @@ export const paymentService = {
 
       if (response.success) {
         return {
-          success: true,
-          data: {
-            paymentUrl: response.data.payment_url,
-            redirectUrl: response.data.redirect_url,
-            paymentToken: response.data.payment_token,
-            orderUuid: response.data.order_uuid
-          }
+            success: true,
+            data: {
+                redirectUrl: response.data.redirect_url,  // ← Yang dipake cuma ini
+                snapToken: response.data.snap_token,
+                orderNumber: response.data.order_number,
+                orderUuid: response.data.order_uuid || orderUuid
+            }
         }
       }
 

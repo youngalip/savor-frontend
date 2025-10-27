@@ -85,6 +85,40 @@ export const orderService = {
     }
   },
 
+  getPricingRates: async () => {
+    try {
+      const response = await fetch('http://localhost:8000/api/v1/settings/rates')
+      const data = await response.json()
+      
+      if (data.success) {
+        return {
+          success: true,
+          data: {
+            serviceChargeRate: data.data.service_charge_rate,
+            taxRate: data.data.tax_rate,
+            serviceChargePercentage: data.data.service_charge_percentage,
+            taxPercentage: data.data.tax_percentage
+          }
+        }
+      }
+      
+      throw new Error('Failed to get rates')
+    } catch (error) {
+      console.error('❌ Error getting rates:', error)
+      return {
+        success: false,
+        error: error.message,
+        // Fallback to default rates
+        data: {
+          serviceChargeRate: 0.07,
+          taxRate: 0.10,
+          serviceChargePercentage: '7%',
+          taxPercentage: '10%'
+        }
+      }
+    }
+  },
+
   // Get order details
   getOrder: async (orderUuid) => {
     try {

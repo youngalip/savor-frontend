@@ -1,6 +1,6 @@
 import React from 'react'
 import { Outlet, useLocation, Link } from 'react-router-dom'
-import { Home, Menu, ShoppingCart, User } from 'lucide-react'
+import { Home, Menu, ShoppingCart, User, History} from 'lucide-react'
 import useCartStore from '../../store/useCartStore'
 
 const CustomerLayout = () => {
@@ -58,17 +58,17 @@ const CustomerLayout = () => {
               <span className="text-xs font-medium">Cart</span>
             </Link>
 
-            {/* Profile */}
+            {/* History */}
             <Link
-              to="/profile"
+              to="/order-history"
               className={`flex flex-col items-center py-2 px-3 rounded-lg transition-colors ${
                 isActive('/profile') 
                   ? 'text-primary-600' 
                   : 'text-gray-400 hover:text-gray-600'
               }`}
             >
-              <User className="w-5 h-5 mb-1" />
-              <span className="text-xs font-medium">Profile</span>
+              <History className="w-5 h-5 mb-1" />
+              <span className="text-xs font-medium">History</span>
             </Link>
           </div>
         </div>

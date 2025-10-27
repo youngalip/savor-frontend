@@ -1,6 +1,6 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Plus, Minus, Trash2, Edit3 } from 'lucide-react'
+import { ArrowLeft, Plus, Minus, Trash2, Edit3, Info } from 'lucide-react'
 import useCartStore from '../../store/useCartStore'
 import { storeInfo } from '../../data/menuData'
 import { formatCurrency } from '../../utils/formatters'
@@ -13,13 +13,26 @@ const CartPage = () => {
     updateQuantity, 
     removeItem, 
     updateItemNotes,
-    getSubtotal, 
+    getSubtotal,
+    getServiceCharge,
+    getTax,
     getTotal,
-    clearCart 
+    getBreakdown,
+    clearCart,
+    fetchRates,
+    ratesLoaded
   } = useCartStore()
 
   const [editingNotes, setEditingNotes] = useState(null)
   const [tempNotes, setTempNotes] = useState('')
+  const [showBreakdownInfo, setShowBreakdownInfo] = useState(false)
+
+  // Fetch rates saat component mount
+  useEffect(() => {
+    if (!ratesLoaded) {
+      fetchRates()
+    }
+  }, [ratesLoaded, fetchRates])
 
   const handleBack = () => {
     navigate(-1)
@@ -56,6 +69,9 @@ const CartPage = () => {
     setEditingNotes(null)
     setTempNotes('')
   }
+
+  // Get breakdown data
+  const breakdown = getBreakdown()
 
   // Empty cart state
   if (items.length === 0) {
@@ -246,19 +262,58 @@ const CartPage = () => {
           </div>
         </div>
 
-        {/* Order Summary */}
+        {/* Order Summary with Tax & Service Breakdown */}
         <div className="px-4 py-6 bg-white mx-4 rounded-2xl shadow-sm border border-cream-200">
-          <h3 className="text-lg font-bold text-gray-900 mb-4">Order Summary</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-bold text-gray-900">Order Summary</h3>
+            <button
+              onClick={() => setShowBreakdownInfo(!showBreakdownInfo)}
+              className="p-1 hover:bg-cream-100 rounded-lg transition-colors"
+            >
+              <Info className="w-5 h-5 text-gray-400" />
+            </button>
+          </div>
           
+          {/* Breakdown Info Message */}
+          {showBreakdownInfo && (
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-xs text-blue-800">
+                <strong>Service Charge:</strong> Biaya pelayanan {breakdown.serviceCharge.percentage} dari subtotal<br/>
+                <strong>Restaurant Tax:</strong> Pajak restoran {breakdown.tax.percentage} dari subtotal + service charge
+              </p>
+            </div>
+          )}
+
           <div className="space-y-3">
             {/* Subtotal */}
             <div className="flex justify-between items-center">
               <span className="text-gray-600">Subtotal</span>
               <span className="font-semibold text-gray-900">
-                {formatCurrency(getSubtotal())}
+                {formatCurrency(breakdown.subtotal)}
               </span>
             </div>
 
+            {/* Service Charge */}
+            <div className="flex justify-between items-center">
+              <div className="flex items-center space-x-1">
+                <span className="text-gray-600">Service Charge</span>
+                <span className="text-xs text-gray-500">({breakdown.serviceCharge.percentage})</span>
+              </div>
+              <span className="font-semibold text-gray-900">
+                {formatCurrency(breakdown.serviceCharge.amount)}
+              </span>
+            </div>
+
+            {/* Tax */}
+            <div className="flex justify-between items-center">
+              <div className="flex items-center space-x-1">
+                <span className="text-gray-600">Restaurant Tax</span>
+                <span className="text-xs text-gray-500">({breakdown.tax.percentage})</span>
+              </div>
+              <span className="font-semibold text-gray-900">
+                {formatCurrency(breakdown.tax.amount)}
+              </span>
+            </div>
 
             {/* Divider */}
             <div className="border-t border-cream-200 my-4" />
@@ -267,16 +322,23 @@ const CartPage = () => {
             <div className="flex justify-between items-center">
               <span className="text-lg font-bold text-gray-900">Total</span>
               <span className="text-lg font-bold text-primary-600">
-                {formatCurrency(getTotal())}
+                {formatCurrency(breakdown.total)}
               </span>
             </div>
+          </div>
+
+          {/* Tax Info Footer */}
+          <div className="mt-4 pt-4 border-t border-cream-200">
+            <p className="text-xs text-gray-500 text-center">
+              Harga sudah termasuk service charge & pajak restoran
+            </p>
           </div>
         </div>
       </div>
 
       {/* Bottom Checkout Button using BottomButton component */}
       <BottomButton onClick={handleCheckout}>
-        Proceed to Checkout - {formatCurrency(getTotal())}
+        Proceed to Checkout • {formatCurrency(breakdown.total)}
       </BottomButton>
     </div>
   )

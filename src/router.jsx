@@ -5,6 +5,7 @@ import CartPage from './pages/customer/CartPage'
 import ItemDetailPage from './pages/customer/ItemDetailPage'
 import CheckoutPage from './pages/customer/CheckoutPage'
 import PaymentSuccessPage from './pages/customer/PaymentSuccessPage'
+import OrderHistoryPage from './pages/customer/OrderHistoryPage'
 
 export const router = createBrowserRouter([
   {
@@ -34,6 +35,10 @@ export const router = createBrowserRouter([
       {
         path: 'payment-success',
         element: <PaymentSuccessPage />
+      },
+      {
+        path: 'order-history',
+        element: <OrderHistoryPage />
       }
     ]
   }

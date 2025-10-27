@@ -105,8 +105,8 @@ const CheckoutPage = () => {
       }))
 
       // Open payment URL
-      if (paymentResult.data.paymentUrl) {
-        paymentService.openPayment(paymentResult.data.paymentUrl, selectedPayment)
+      if (paymentResult.data.redirectUrl) {
+        window.location.href = paymentResult.data.redirectUrl
       } else {
         // For testing, simulate payment success
         console.log('🧪 No payment URL, simulating success...')

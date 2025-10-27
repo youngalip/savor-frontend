@@ -18,9 +18,31 @@ const useCartStore = create(
       currentOrder: null,
       orderHistory: [],
       
+      // Tax & Service rates
+      serviceChargeRate: 0.07, // 7% default
+      taxRate: 0.10, // 10% default
+      ratesLoaded: false,
+      
       // Loading states
       isCreatingOrder: false,
       isValidatingCart: false,
+
+      // Fetch rates dari backend
+      fetchRates: async () => {
+        try {
+          const result = await orderService.getPricingRates()
+          if (result.success) {
+            set({
+              serviceChargeRate: result.data.serviceChargeRate,
+              taxRate: result.data.taxRate,
+              ratesLoaded: true
+            })
+          }
+        } catch (error) {
+          console.error('Failed to fetch rates:', error)
+          // Keep default rates
+        }
+      },
 
       // Cart actions
       addItem: (item) => set((state) => {
@@ -84,7 +106,7 @@ const useCartStore = create(
         orderHistory: []
       }),
 
-      // Cart calculations
+      // Cart calculations - UPDATED dengan tax & service
       getSubtotal: () => {
         const { items } = get()
         return items.reduce((total, item) => {
@@ -94,11 +116,63 @@ const useCartStore = create(
         }, 0)
       },
       
-      getServiceFee: () => 15000, // Fixed service fee from backend
+      // NEW: Calculate service charge
+      getServiceCharge: () => {
+        const { serviceChargeRate } = get()
+        const subtotal = get().getSubtotal()
+        return Math.round(subtotal * serviceChargeRate)
+      },
+
+      // NEW: Calculate tax base
+      getTaxBase: () => {
+        const subtotal = get().getSubtotal()
+        const serviceCharge = get().getServiceCharge()
+        return subtotal + serviceCharge
+      },
+
+      // NEW: Calculate tax
+      getTax: () => {
+        const { taxRate } = get()
+        const taxBase = get().getTaxBase()
+        return Math.round(taxBase * taxRate)
+      },
       
+      // DEPRECATED: Old service fee method
+      getServiceFee: () => {
+        return get().getServiceCharge() // Use new method
+      },
+      
+      // UPDATED: Total dengan tax & service
       getTotal: () => {
-        const { getSubtotal, getServiceFee } = get()
-        return getSubtotal() + getServiceFee()
+        const taxBase = get().getTaxBase()
+        const tax = get().getTax()
+        return taxBase + tax
+      },
+
+      // NEW: Get full breakdown
+      getBreakdown: () => {
+        const { serviceChargeRate, taxRate } = get()
+        const subtotal = get().getSubtotal()
+        const serviceCharge = get().getServiceCharge()
+        const taxBase = get().getTaxBase()
+        const tax = get().getTax()
+        const total = get().getTotal()
+
+        return {
+          subtotal,
+          serviceCharge: {
+            rate: serviceChargeRate,
+            amount: serviceCharge,
+            percentage: `${(serviceChargeRate * 100).toFixed(0)}%`
+          },
+          tax: {
+            rate: taxRate,
+            amount: tax,
+            percentage: `${(taxRate * 100).toFixed(0)}%`
+          },
+          taxBase,
+          total
+        }
       },
       
       getItemCount: () => {
@@ -232,11 +306,14 @@ const useCartStore = create(
       // Utility functions
       getCartSummary: () => {
         const state = get()
+        const breakdown = state.getBreakdown()
         return {
           itemCount: state.getItemCount(),
-          subtotal: state.getSubtotal(),
-          serviceFee: state.getServiceFee(),
-          total: state.getTotal(),
+          subtotal: breakdown.subtotal,
+          serviceCharge: breakdown.serviceCharge.amount,
+          tax: breakdown.tax.amount,
+          total: breakdown.total,
+          breakdown: breakdown,
           items: state.items
         }
       },
@@ -261,6 +338,7 @@ const useCartStore = create(
         sessionToken: state.sessionToken,
         customerUuid: state.customerUuid,
         tableInfo: state.tableInfo
+        // Jangan persist rates, fetch fresh setiap kali
       })
     }
   )
