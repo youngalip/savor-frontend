@@ -1,152 +1,164 @@
-import { useState } from 'react';
-import { Filter, X } from 'lucide-react';
+import { Filter } from 'lucide-react';
 
 const FilterBar = ({ 
-  onFilterChange, 
-  showCategoryFilter = true, 
-  showTableFilter = true,
-  showDateFilter = false 
+  selectedCategory, 
+  onCategoryChange, 
+  selectedTable, 
+  onTableChange,
+  selectedPaymentStatus,
+  onPaymentStatusChange,
+  showPaymentFilter = false,
+  showDateFilter = false,
+  dateFrom,
+  dateTo,
+  onDateFromChange,
+  onDateToChange
 }) => {
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [selectedTable, setSelectedTable] = useState('all');
-  const [dateRange, setDateRange] = useState({ start: '', end: '' });
-  const [showFilters, setShowFilters] = useState(false);
-
-  const categories = [
-    { value: 'all', label: 'Semua Kategori' },
-    { value: 'kitchen', label: 'Kitchen' },
-    { value: 'bar', label: 'Bar' },
-    { value: 'pastry', label: 'Pastry' }
+  const categories = ['all', 'Kitchen', 'Bar', 'Pastry'];
+  const tables = ['all', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
+  const paymentStatuses = [
+    { value: 'all', label: 'Semua Pembayaran' },
+    { value: 'Pending', label: 'Belum Lunas' },
+    { value: 'Paid', label: 'Sudah Lunas' }
   ];
 
-  const tables = [
-    { value: 'all', label: 'Semua Meja' },
-    ...Array.from({ length: 10 }, (_, i) => ({
-      value: (i + 1).toString(),
-      label: `Meja ${i + 1}`
-    }))
-  ];
-
-  const handleCategoryChange = (value) => {
-    setSelectedCategory(value);
-    onFilterChange({ category: value, table: selectedTable, dateRange });
+  const getCategoryLabel = (category) => {
+    return category === 'all' ? 'Semua Kategori' : category;
   };
 
-  const handleTableChange = (value) => {
-    setSelectedTable(value);
-    onFilterChange({ category: selectedCategory, table: value, dateRange });
+  const getTableLabel = (table) => {
+    return table === 'all' ? 'Semua Meja' : `Meja ${table}`;
   };
-
-  const handleDateChange = (type, value) => {
-    const newDateRange = { ...dateRange, [type]: value };
-    setDateRange(newDateRange);
-    onFilterChange({ category: selectedCategory, table: selectedTable, dateRange: newDateRange });
-  };
-
-  const clearFilters = () => {
-    setSelectedCategory('all');
-    setSelectedTable('all');
-    setDateRange({ start: '', end: '' });
-    onFilterChange({ category: 'all', table: 'all', dateRange: { start: '', end: '' } });
-  };
-
-  const hasActiveFilters = selectedCategory !== 'all' || selectedTable !== 'all' || dateRange.start || dateRange.end;
 
   return (
-    <div className="bg-white border-b border-cream-200 p-4">
-      <div className="flex items-center justify-between mb-4">
-        <button
-          onClick={() => setShowFilters(!showFilters)}
-          className="flex items-center gap-2 px-4 py-2 bg-cream-50 hover:bg-cream-100 rounded-lg transition-colors"
-        >
-          <Filter size={18} />
-          <span className="font-medium">Filter</span>
-          {hasActiveFilters && (
-            <span className="ml-2 px-2 py-0.5 bg-primary-500 text-white text-xs rounded-full">
-              Active
-            </span>
-          )}
-        </button>
+    <div className="bg-white rounded-xl p-4 shadow-sm mb-6">
+      <div className="flex items-center gap-2 mb-4">
+        <Filter size={20} className="text-gray-600" />
+        <h3 className="font-semibold text-gray-900">Filter Pesanan</h3>
+      </div>
 
-        {hasActiveFilters && (
-          <button
-            onClick={clearFilters}
-            className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:bg-cream-50 rounded-lg transition-colors"
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Category Filter */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Kategori
+          </label>
+          <select
+            value={selectedCategory}
+            onChange={(e) => onCategoryChange(e.target.value)}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8b1538] focus:border-transparent transition-all"
           >
-            <X size={18} />
-            <span className="text-sm">Clear Filters</span>
-          </button>
+            {categories.map((category) => (
+              <option key={category} value={category}>
+                {getCategoryLabel(category)}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Table Filter */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Meja
+          </label>
+          <select
+            value={selectedTable}
+            onChange={(e) => onTableChange(e.target.value)}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8b1538] focus:border-transparent transition-all"
+          >
+            {tables.map((table) => (
+              <option key={table} value={table}>
+                {getTableLabel(table)}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Payment Status Filter (Conditional) */}
+        {showPaymentFilter && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Status Pembayaran
+            </label>
+            <select
+              value={selectedPaymentStatus}
+              onChange={(e) => onPaymentStatusChange(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8b1538] focus:border-transparent transition-all"
+            >
+              {paymentStatuses.map((status) => (
+                <option key={status.value} value={status.value}>
+                  {status.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* Date Filter (Conditional) */}
+        {showDateFilter && (
+          <>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Dari Tanggal
+              </label>
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => onDateFromChange(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8b1538] focus:border-transparent transition-all"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Sampai Tanggal
+              </label>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e) => onDateToChange(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8b1538] focus:border-transparent transition-all"
+              />
+            </div>
+          </>
         )}
       </div>
 
-      {showFilters && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-cream-200">
-          {showCategoryFilter && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Kategori
-              </label>
-              <select
-                value={selectedCategory}
-                onChange={(e) => handleCategoryChange(e.target.value)}
-                className="w-full px-4 py-2 border border-cream-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              >
-                {categories.map((cat) => (
-                  <option key={cat.value} value={cat.value}>
-                    {cat.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {showTableFilter && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Nomor Meja
-              </label>
-              <select
-                value={selectedTable}
-                onChange={(e) => handleTableChange(e.target.value)}
-                className="w-full px-4 py-2 border border-cream-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              >
-                {tables.map((table) => (
-                  <option key={table.value} value={table.value}>
-                    {table.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {showDateFilter && (
-            <>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Tanggal Mulai
-                </label>
-                <input
-                  type="date"
-                  value={dateRange.start}
-                  onChange={(e) => handleDateChange('start', e.target.value)}
-                  className="w-full px-4 py-2 border border-cream-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Tanggal Akhir
-                </label>
-                <input
-                  type="date"
-                  value={dateRange.end}
-                  onChange={(e) => handleDateChange('end', e.target.value)}
-                  className="w-full px-4 py-2 border border-cream-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                />
-              </div>
-            </>
-          )}
-        </div>
-      )}
+      {/* Active Filters Summary */}
+      <div className="mt-4 flex flex-wrap gap-2">
+        {selectedCategory !== 'all' && (
+          <span className="inline-flex items-center gap-1 px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-xs font-medium">
+            Kategori: {selectedCategory}
+            <button
+              onClick={() => onCategoryChange('all')}
+              className="hover:bg-orange-200 rounded-full p-0.5"
+            >
+              ✕
+            </button>
+          </span>
+        )}
+        {selectedTable !== 'all' && (
+          <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
+            Meja {selectedTable}
+            <button
+              onClick={() => onTableChange('all')}
+              className="hover:bg-blue-200 rounded-full p-0.5"
+            >
+              ✕
+            </button>
+          </span>
+        )}
+        {showPaymentFilter && selectedPaymentStatus !== 'all' && (
+          <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">
+            {selectedPaymentStatus === 'Paid' ? 'Sudah Lunas' : 'Belum Lunas'}
+            <button
+              onClick={() => onPaymentStatusChange('all')}
+              className="hover:bg-green-200 rounded-full p-0.5"
+            >
+              ✕
+            </button>
+          </span>
+        )}
+      </div>
     </div>
   );
 };

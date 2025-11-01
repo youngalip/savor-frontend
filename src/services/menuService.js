@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 // src/services/menuService.js
 import { apiService } from './api'
 
@@ -310,12 +311,27 @@ export const menuService = {
   checkStock: async (menuId) => {
     try {
       const response = await apiService.checkStock(menuId)
-      return response
+      
+      // Response sudah dalam format yang benar dari api.js
+      if (response.success) {
+        return response
+      }
+      
+      throw new Error('Failed to check stock')
     } catch (error) {
       console.error('Error checking stock:', error)
+      
+      // Return graceful fallback untuk mencegah crash
       return {
         success: false,
-        error: error.message
+        error: error.message,
+        data: {
+          menu_item_id: menuId,
+          stock_quantity: 0,
+          is_available: false,
+          is_low_stock: false,
+          stock_status: 'unavailable'
+        }
       }
     }
   },
