@@ -29,21 +29,34 @@ const ItemDetailPage = () => {
       setLoading(true)
       setError(null)
 
-      // Load item details and stock info in parallel
-      const [itemResult, stockResult] = await Promise.all([
-        menuService.getMenuItem(parseInt(id)),
-        menuService.checkStock(parseInt(id))
-      ])
+      // Load item details first
+      const itemResult = await menuService.getMenuItem(parseInt(id))
 
       if (itemResult.success) {
         setItem(itemResult.data)
+        
+        // Load stock info after item is loaded
+        try {
+          const stockResult = await menuService.checkStock(parseInt(id))
+          if (stockResult.success) {
+            setStockInfo(stockResult.data)
+          } else {
+            console.warn('Stock info not available:', stockResult.error)
+            // Set default stock info jika gagal
+            setStockInfo({
+              stock_quantity: 0,
+              is_available: false,
+              is_low_stock: false,
+              stock_status: 'unavailable'
+            })
+          }
+        } catch (stockErr) {
+          console.warn('Failed to load stock info:', stockErr)
+          // Continue without stock info
+        }
       } else {
         setError('Menu item not found')
         return
-      }
-
-      if (stockResult.success) {
-        setStockInfo(stockResult.data)
       }
 
     } catch (err) {

@@ -103,8 +103,32 @@ export const apiService = {
 
   // Stock Management
   checkStock: async (menuId) => {
-    const response = await apiClient.get(`/stock/check/${menuId}`)
-    return response.data
+    try {
+      // Gunakan endpoint getMenu yang sudah ada
+      const response = await apiClient.get(`/menus/${menuId}`)
+      
+      // Transform response untuk format stock check
+      if (response.data.success && response.data.data) {
+        const item = response.data.data
+        return {
+          success: true,
+          data: {
+            menu_item_id: item.id,
+            name: item.name,
+            stock_quantity: item.stock_quantity || 0,
+            minimum_stock: item.minimum_stock || 0,
+            is_available: item.is_available && item.stock_quantity > 0,
+            is_low_stock: item.stock_quantity <= (item.minimum_stock || 5),
+            stock_status: item.is_available && item.stock_quantity > 0 ? 'available' : 'out_of_stock'
+          }
+        }
+      }
+      
+      throw new Error('Invalid response format')
+    } catch (error) {
+      console.error('Error checking stock:', error)
+      throw error
+    }
   },
 
   // Order Management
