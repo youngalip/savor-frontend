@@ -2,28 +2,7 @@ import { useState } from 'react';
 import { X, Clock, CheckCircle, AlertCircle } from 'lucide-react';
 import Sidebar, { useSidebar, SidebarProvider } from '../../../components/kitchen/Sidebar';
 
-// --- Helper Functions ---
-const formatCurrency = (amount) =>
-  new Intl.NumberFormat('id-ID', {
-    style: 'currency',
-    currency: 'IDR',
-    minimumFractionDigits: 0
-  }).format(amount);
-
-const formatTime = (date) =>
-  new Date(date).toLocaleTimeString('id-ID', {
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-
-const formatDate = (date) =>
-  new Date(date).toLocaleDateString('id-ID', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric'
-  });
-
-// --- Data Dummy Pesanan Kitchen ---
+// --- Dummy Orders (Kitchen Only) ---
 const initialKitchenOrders = [
   {
     id: 'ORD-001',
@@ -31,24 +10,8 @@ const initialKitchenOrders = [
     orderTime: new Date().toISOString(),
     status: 'processing',
     items: [
-      {
-        id: 'item-1',
-        name: 'Nasi Goreng Spesial',
-        category: 'kitchen',
-        quantity: 2,
-        price: 35000,
-        status: 'processing',
-        notes: 'Pedas level 3'
-      },
-      {
-        id: 'item-2',
-        name: 'Ayam Bakar',
-        category: 'kitchen',
-        quantity: 1,
-        price: 45000,
-        status: 'processing',
-        notes: ''
-      }
+      { id: 'item-1', name: 'Nasi Goreng Spesial', category: 'kitchen', quantity: 2, price: 35000, status: 'processing', notes: 'Pedas level 3' },
+      { id: 'item-2', name: 'Ayam Bakar', category: 'kitchen', quantity: 1, price: 45000, status: 'processing', notes: '' }
     ],
     totalAmount: 115000
   },
@@ -58,15 +21,7 @@ const initialKitchenOrders = [
     orderTime: new Date(Date.now() - 300000).toISOString(),
     status: 'processing',
     items: [
-      {
-        id: 'item-3',
-        name: 'Spaghetti Carbonara',
-        category: 'kitchen',
-        quantity: 1,
-        price: 55000,
-        status: 'processing',
-        notes: 'Extra cheese'
-      }
+      { id: 'item-3', name: 'Spaghetti Carbonara', category: 'kitchen', quantity: 1, price: 55000, status: 'processing', notes: 'Extra cheese' }
     ],
     totalAmount: 55000
   },
@@ -76,30 +31,23 @@ const initialKitchenOrders = [
     orderTime: new Date(Date.now() - 600000).toISOString(),
     status: 'processing',
     items: [
-      {
-        id: 'item-4',
-        name: 'Beef Steak',
-        category: 'kitchen',
-        quantity: 1,
-        price: 85000,
-        status: 'done',
-        notes: 'Medium rare'
-      },
-      {
-        id: 'item-5',
-        name: 'Nasi Goreng Seafood',
-        category: 'kitchen',
-        quantity: 2,
-        price: 42000,
-        status: 'processing',
-        notes: ''
-      }
+      { id: 'item-4', name: 'Beef Steak', category: 'kitchen', quantity: 1, price: 85000, status: 'done', notes: 'Medium rare' },
+      { id: 'item-5', name: 'Nasi Goreng Seafood', category: 'kitchen', quantity: 2, price: 42000, status: 'processing', notes: '' }
     ],
     totalAmount: 169000
   }
 ];
 
-// --- Komponen Kartu Pesanan ---
+// --- Helper Functions ---
+const formatCurrency = (amount) =>
+  new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
+
+const formatTime = (date) => new Date(date).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+
+const formatDate = (date) =>
+  new Date(date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+
+// --- Order Card ---
 const OrderCard = ({ order, onViewDetails }) => {
   const processingItems = order.items.filter((item) => item.status === 'processing');
   const doneItems = order.items.filter((item) => item.status === 'done');
@@ -142,9 +90,7 @@ const OrderCard = ({ order, onViewDetails }) => {
 
       <div className="flex items-center justify-between pt-4 border-t border-cream-200">
         <span className="text-sm font-medium text-gray-700">Total</span>
-        <span className="text-lg font-bold text-primary-500">
-          {formatCurrency(order.totalAmount)}
-        </span>
+        <span className="text-lg font-bold text-primary-500">{formatCurrency(order.totalAmount)}</span>
       </div>
 
       <button
@@ -160,7 +106,7 @@ const OrderCard = ({ order, onViewDetails }) => {
   );
 };
 
-// --- Komponen Modal Detail Pesanan ---
+// --- Order Modal ---
 const OrderModal = ({ order, isOpen, onClose, onItemStatusUpdate }) => {
   if (!isOpen || !order) return null;
 
@@ -170,24 +116,20 @@ const OrderModal = ({ order, isOpen, onClose, onItemStatusUpdate }) => {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        {/* Header */}
         <div className="sticky top-0 bg-white border-b border-cream-200 p-6 flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-bold text-gray-900">Kelola Pesanan Kitchen</h2>
-            <p className="text-sm text-gray-500 mt-1">
-              Meja {order.tableNumber} • #{order.id}
-            </p>
+            <p className="text-sm text-gray-500 mt-1">Meja {order.tableNumber} • #{order.id}</p>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-cream-50 rounded-lg transition-colors"
-          >
+          <button onClick={onClose} className="p-2 hover:bg-cream-50 rounded-lg transition-colors">
             <X size={24} />
           </button>
         </div>
 
+        {/* Konten */}
         <div className="p-6">
-          {/* Informasi Waktu */}
-          <div className="card p-4 mb-6 border border-cream-200 rounded-lg bg-cream-50">
+          <div className="card p-4 mb-6 border border-cream-200 bg-cream-50 rounded-lg">
             <div className="flex items-center gap-2 text-gray-600 mb-2">
               <Clock size={18} />
               <span className="text-sm font-medium">Waktu Pemesanan</span>
@@ -196,15 +138,12 @@ const OrderModal = ({ order, isOpen, onClose, onItemStatusUpdate }) => {
             <p className="text-sm text-gray-500">{formatDate(order.orderTime)}</p>
           </div>
 
-          {/* Status Informasi */}
           {allItemsDone && (
             <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6 flex gap-3 items-start">
               <CheckCircle size={20} className="text-green-600 flex-shrink-0" />
               <div>
                 <h4 className="font-semibold text-green-900 mb-1">Semua Item Siap!</h4>
-                <p className="text-sm text-green-800">
-                  Semua item dalam pesanan ini sudah selesai dibuat.
-                </p>
+                <p className="text-sm text-green-800">Semua makanan telah selesai dibuat.</p>
               </div>
             </div>
           )}
@@ -214,24 +153,18 @@ const OrderModal = ({ order, isOpen, onClose, onItemStatusUpdate }) => {
               <AlertCircle size={20} className="text-blue-600 flex-shrink-0" />
               <div>
                 <h4 className="font-semibold text-blue-900 mb-1">Dalam Proses</h4>
-                <p className="text-sm text-blue-800">
-                  Masih ada {processingItems.length} item yang sedang diproses.
-                </p>
+                <p className="text-sm text-blue-800">Masih ada {processingItems.length} item yang sedang diproses.</p>
               </div>
             </div>
           )}
 
-          {/* Daftar Item */}
           <div className="space-y-3">
             {order.items.map((item) => (
               <div key={item.id} className="card p-4 border border-cream-200 rounded-lg">
                 <div className="flex justify-between mb-3">
                   <h4 className="font-semibold text-gray-900 text-lg">{item.name}</h4>
-                  <span className="font-semibold text-gray-900">
-                    {formatCurrency(item.price * item.quantity)}
-                  </span>
+                  <span className="font-semibold text-gray-900">{formatCurrency(item.price * item.quantity)}</span>
                 </div>
-
                 {item.status === 'processing' ? (
                   <button
                     onClick={() => onItemStatusUpdate(order.id, item.id, 'done')}
@@ -263,7 +196,7 @@ const OrderModal = ({ order, isOpen, onClose, onItemStatusUpdate }) => {
   );
 };
 
-// --- Komponen Utama Konten Kitchen Station ---
+// --- Main Content ---
 const KitchenStationContent = () => {
   const [orders, setOrders] = useState(initialKitchenOrders);
   const [filteredOrders, setFilteredOrders] = useState(initialKitchenOrders);
@@ -274,12 +207,7 @@ const KitchenStationContent = () => {
   const handleItemStatusUpdate = (orderId, itemId, newStatus) => {
     const updatedOrders = orders.map((order) =>
       order.id === orderId
-        ? {
-            ...order,
-            items: order.items.map((item) =>
-              item.id === itemId ? { ...item, status: newStatus } : item
-            )
-          }
+        ? { ...order, items: order.items.map((item) => (item.id === itemId ? { ...item, status: newStatus } : item)) }
         : order
     );
     setOrders(updatedOrders);
@@ -292,37 +220,76 @@ const KitchenStationContent = () => {
       setSelectedOrder(updatedOrders.find((o) => o.id === orderId));
   };
 
+  const handleTableFilterChange = (table) => {
+    setTableFilter(table);
+    setFilteredOrders(
+      table === 'all' ? orders : orders.filter((o) => o.tableNumber === parseInt(table))
+    );
+  };
+
+  const handleViewDetails = (order) => setSelectedOrder(order);
+
+  const getTotalProcessingItems = () =>
+    orders.reduce((total, order) => total + order.items.filter((item) => item.status === 'processing').length, 0);
+
+  const tableNumbers = [...new Set(orders.map((o) => o.tableNumber))].sort((a, b) => a - b);
+
   return (
     <div className="flex min-h-screen bg-cream-50">
       <Sidebar stationType="kitchen" />
 
-      {/* Konten utama bergeser sesuai state sidebar */}
       <div className={`flex-1 transition-all duration-300 ${isCollapsed ? 'lg:ml-0' : 'lg:ml-64'}`}>
-        <div className="p-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-6">Kitchen Station</h1>
+        {/* Header */}
+        <div className="bg-white border-b border-cream-200 px-8 py-6 flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Kitchen Station</h1>
+            <p className="text-gray-500 mt-1">Pesanan makanan berat yang sedang diproses</p>
+          </div>
+          <div className="flex items-center gap-2 px-4 py-2 bg-orange-50 rounded-lg">
+            <span className="text-2xl font-bold text-orange-600">{getTotalProcessingItems()}</span>
+            <span className="text-sm text-orange-600 font-medium">Item Diproses</span>
+          </div>
+        </div>
 
+        {/* Filter */}
+        <div className="bg-white border-b border-cream-200 px-8 py-4">
+          <span className="text-sm font-semibold text-gray-700 mr-2">Filter Meja:</span>
+          <button
+            onClick={() => handleTableFilterChange('all')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium ${tableFilter === 'all' ? 'bg-orange-500 text-white' : 'bg-cream-100 text-gray-700 hover:bg-cream-200'}`}
+          >
+            Semua Meja
+          </button>
+          {tableNumbers.map((table) => (
+            <button
+              key={table}
+              onClick={() => handleTableFilterChange(table.toString())}
+              className={`px-4 py-2 ml-2 rounded-lg text-sm font-medium ${tableFilter === table.toString() ? 'bg-orange-500 text-white' : 'bg-cream-100 text-gray-700 hover:bg-cream-200'}`}
+            >
+              Meja {table}
+            </button>
+          ))}
+        </div>
+
+        {/* Grid Pesanan */}
+        <div className="p-8">
           {filteredOrders.length === 0 ? (
             <div className="text-center py-12">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-cream-100 rounded-full mb-4">
-                🍳
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                Tidak ada pesanan kitchen
-              </h3>
-              <p className="text-gray-500">
-                Saat ini tidak ada pesanan makanan yang perlu diproses.
-              </p>
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-cream-100 rounded-full mb-4">🍳</div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Tidak ada pesanan kitchen</h3>
+              <p className="text-gray-500">Saat ini tidak ada pesanan makanan yang perlu diproses</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredOrders.map((order) => (
-                <OrderCard key={order.id} order={order} onViewDetails={setSelectedOrder} />
+                <OrderCard key={order.id} order={order} onViewDetails={handleViewDetails} />
               ))}
             </div>
           )}
         </div>
       </div>
 
+      {/* Modal */}
       <OrderModal
         order={selectedOrder}
         isOpen={!!selectedOrder}
