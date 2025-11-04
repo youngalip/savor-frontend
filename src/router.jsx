@@ -14,17 +14,34 @@ import ReadyOrders from "./pages/staff/cashier/ReadyOrders";
 import CompletedOrders from "./pages/staff/cashier/CompletedOrders";
 import { SidebarProvider } from "./components/cashier/Sidebar";
 
-// Kitchen Stations
+// Kitchen Stations - Orders
 import KitchenStation from "./pages/staff/kitchen/KitchenStation";
 import BarStation from "./pages/staff/kitchen/BarStation";
 import PastryStation from "./pages/staff/kitchen/PastryStation";
 
-// Wrapper component untuk Cashier routes dengan SidebarProvider
+// Kitchen Stations - Stock Management
+import KitchenStockManagement from "./pages/staff/kitchen/KitchenStockManagement";
+import BarStockManagement from "./pages/staff/kitchen/BarStockManagement";
+import PastryStockManagement from "./pages/staff/kitchen/PastryStockManagement";
+
+// Kitchen Sidebar Provider
+import { SidebarProvider as KitchenSidebarProvider } from "./components/kitchen/Sidebar";
+
+// Wrapper component untuk Cashier routes
 const CashierLayout = () => {
   return (
     <SidebarProvider>
       <Outlet />
     </SidebarProvider>
+  );
+};
+
+// Wrapper component untuk Kitchen routes
+const KitchenLayout = () => {
+  return (
+    <KitchenSidebarProvider>
+      <Outlet />
+    </KitchenSidebarProvider>
   );
 };
 
@@ -36,11 +53,11 @@ export const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <MenuPage />, // MenuPage is now the homepage
+        element: <MenuPage />,
       },
       {
         path: "menu",
-        element: <MenuPage />, // Also available at /menu for consistency
+        element: <MenuPage />,
       },
       {
         path: "cart",
@@ -96,22 +113,35 @@ export const router = createBrowserRouter([
   // Kitchen Routes
   {
     path: "/staff",
+    element: <KitchenLayout />,
     children: [
       {
         index: true,
-        element: <KitchenStation />, // Default to kitchen station
+        element: <KitchenStation />,
       },
       {
         path: "kitchen-station",
         element: <KitchenStation />,
       },
       {
+        path: "kitchen-stock",
+        element: <KitchenStockManagement />,
+      },
+      {
         path: "bar-station",
         element: <BarStation />,
       },
       {
+        path: "bar-stock",
+        element: <BarStockManagement />,
+      },
+      {
         path: "pastry-station",
         element: <PastryStation />,
+      },
+      {
+        path: "pastry-stock",
+        element: <PastryStockManagement />,
       },
     ],
   },
