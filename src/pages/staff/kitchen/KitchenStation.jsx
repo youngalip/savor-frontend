@@ -1,47 +1,11 @@
 import { useState } from 'react';
-import { X, Clock, CheckCircle, AlertCircle } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { X, Clock, CheckCircle, AlertCircle, RefreshCw, Wifi, WifiOff } from 'lucide-react';
 import Sidebar, { useSidebar, SidebarProvider } from '../../../components/kitchen/Sidebar';
-
-// --- Dummy Orders (Kitchen Only) ---
-const initialKitchenOrders = [
-  {
-    id: 'ORD-001',
-    tableNumber: 5,
-    orderTime: new Date().toISOString(),
-    status: 'processing',
-    items: [
-      { id: 'item-1', name: 'Nasi Goreng Spesial', category: 'kitchen', quantity: 2, price: 35000, status: 'processing', notes: 'Pedas level 3' },
-      { id: 'item-2', name: 'Ayam Bakar', category: 'kitchen', quantity: 1, price: 45000, status: 'processing', notes: '' }
-    ],
-    totalAmount: 115000
-  },
-  {
-    id: 'ORD-002',
-    tableNumber: 3,
-    orderTime: new Date(Date.now() - 300000).toISOString(),
-    status: 'processing',
-    items: [
-      { id: 'item-3', name: 'Spaghetti Carbonara', category: 'kitchen', quantity: 1, price: 55000, status: 'processing', notes: 'Extra cheese' }
-    ],
-    totalAmount: 55000
-  },
-  {
-    id: 'ORD-003',
-    tableNumber: 8,
-    orderTime: new Date(Date.now() - 600000).toISOString(),
-    status: 'processing',
-    items: [
-      { id: 'item-4', name: 'Beef Steak', category: 'kitchen', quantity: 1, price: 85000, status: 'done', notes: 'Medium rare' },
-      { id: 'item-5', name: 'Nasi Goreng Seafood', category: 'kitchen', quantity: 2, price: 42000, status: 'processing', notes: '' }
-    ],
-    totalAmount: 169000
-  }
-];
+import { kitchenApi } from '../../../services/kitchenApi';
+import { transformBackendOrders, mapStatusToBackend, getTimeElapsed } from '../../../utils/kitchenTransformer';
 
 // --- Helper Functions ---
-const formatCurrency = (amount) =>
-  new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
-
 const formatTime = (date) => new Date(date).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
 
 const formatDate = (date) =>
@@ -49,7 +13,7 @@ const formatDate = (date) =>
 
 // --- Order Card ---
 const OrderCard = ({ order, onViewDetails }) => {
-  const processingItems = order.items.filter((item) => item.status === 'processing');
+  const pendingItems = order.items.filter((item) => item.status === 'pending');
   const doneItems = order.items.filter((item) => item.status === 'done');
   const totalItems = order.items.reduce((sum, item) => sum + item.quantity, 0);
 
@@ -79,18 +43,17 @@ const OrderCard = ({ order, onViewDetails }) => {
         </div>
       </div>
 
+      <div className="text-sm text-gray-500 mb-3">
+        {getTimeElapsed(order.orderTime)}
+      </div>
+
       <div className="flex flex-wrap gap-2 mb-4">
         <span className="px-3 py-1 rounded-full text-xs font-medium border bg-blue-50 text-blue-700 border-blue-200">
-          Diproses: {processingItems.length}
+          Pending: {pendingItems.length}
         </span>
         <span className="px-3 py-1 rounded-full text-xs font-medium border bg-green-50 text-green-700 border-green-200">
           Siap: {doneItems.length}
         </span>
-      </div>
-
-      <div className="flex items-center justify-between pt-4 border-t border-cream-200">
-        <span className="text-sm font-medium text-gray-700">Total</span>
-        <span className="text-lg font-bold text-primary-500">{formatCurrency(order.totalAmount)}</span>
       </div>
 
       <button
@@ -107,10 +70,10 @@ const OrderCard = ({ order, onViewDetails }) => {
 };
 
 // --- Order Modal ---
-const OrderModal = ({ order, isOpen, onClose, onItemStatusUpdate }) => {
+const OrderModal = ({ order, isOpen, onClose, onItemStatusUpdate, isUpdating }) => {
   if (!isOpen || !order) return null;
 
-  const processingItems = order.items.filter((item) => item.status === 'processing');
+  const pendingItems = order.items.filter((item) => item.status === 'pending');
   const allItemsDone = order.items.every((item) => item.status === 'done');
 
   return (
@@ -136,6 +99,7 @@ const OrderModal = ({ order, isOpen, onClose, onItemStatusUpdate }) => {
             </div>
             <p className="text-lg font-semibold text-gray-900">{formatTime(order.orderTime)}</p>
             <p className="text-sm text-gray-500">{formatDate(order.orderTime)}</p>
+            <p className="text-sm text-orange-600 font-medium mt-1">{getTimeElapsed(order.orderTime)}</p>
           </div>
 
           {allItemsDone && (
@@ -148,12 +112,12 @@ const OrderModal = ({ order, isOpen, onClose, onItemStatusUpdate }) => {
             </div>
           )}
 
-          {processingItems.length > 0 && (
+          {pendingItems.length > 0 && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 flex gap-3 items-start">
               <AlertCircle size={20} className="text-blue-600 flex-shrink-0" />
               <div>
                 <h4 className="font-semibold text-blue-900 mb-1">Dalam Proses</h4>
-                <p className="text-sm text-blue-800">Masih ada {processingItems.length} item yang sedang diproses.</p>
+                <p className="text-sm text-blue-800">Masih ada {pendingItems.length} item yang perlu diproses.</p>
               </div>
             </div>
           )}
@@ -162,16 +126,23 @@ const OrderModal = ({ order, isOpen, onClose, onItemStatusUpdate }) => {
             {order.items.map((item) => (
               <div key={item.id} className="card p-4 border border-cream-200 rounded-lg">
                 <div className="flex justify-between mb-3">
-                  <h4 className="font-semibold text-gray-900 text-lg">{item.name}</h4>
-                  <span className="font-semibold text-gray-900">{formatCurrency(item.price * item.quantity)}</span>
+                  <div>
+                    <h4 className="font-semibold text-gray-900 text-lg">{item.name}</h4>
+                    <p className="text-sm text-gray-500">Qty: {item.quantity} • {item.preparationTime} menit</p>
+                    {item.notes && (
+                      <p className="text-sm text-orange-600 mt-1">📝 {item.notes}</p>
+                    )}
+                  </div>
                 </div>
-                {item.status === 'processing' ? (
+                
+                {item.status === 'pending' ? (
                   <button
-                    onClick={() => onItemStatusUpdate(order.id, item.id, 'done')}
-                    className="btn-primary text-sm flex items-center gap-2 bg-primary-500 text-white px-4 py-2 rounded-lg hover:bg-primary-600"
+                    onClick={() => onItemStatusUpdate(item.id, 'done')}
+                    disabled={isUpdating}
+                    className="btn-primary text-sm flex items-center gap-2 bg-primary-500 text-white px-4 py-2 rounded-lg hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <CheckCircle size={16} />
-                    <span>Tandai Siap</span>
+                    <span>{isUpdating ? 'Memproses...' : 'Tandai Siap'}</span>
                   </button>
                 ) : (
                   <div className="flex items-center gap-2">
@@ -180,8 +151,9 @@ const OrderModal = ({ order, isOpen, onClose, onItemStatusUpdate }) => {
                       <span>Siap</span>
                     </span>
                     <button
-                      onClick={() => onItemStatusUpdate(order.id, item.id, 'processing')}
-                      className="px-3 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-medium rounded-lg transition-colors"
+                      onClick={() => onItemStatusUpdate(item.id, 'pending')}
+                      disabled={isUpdating}
+                      className="px-3 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Batalkan
                     </button>
@@ -198,41 +170,143 @@ const OrderModal = ({ order, isOpen, onClose, onItemStatusUpdate }) => {
 
 // --- Main Content ---
 const KitchenStationContent = () => {
-  const [orders, setOrders] = useState(initialKitchenOrders);
-  const [filteredOrders, setFilteredOrders] = useState(initialKitchenOrders);
+  const queryClient = useQueryClient();
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [tableFilter, setTableFilter] = useState('all');
   const { isCollapsed } = useSidebar();
 
-  const handleItemStatusUpdate = (orderId, itemId, newStatus) => {
-    const updatedOrders = orders.map((order) =>
-      order.id === orderId
-        ? { ...order, items: order.items.map((item) => (item.id === itemId ? { ...item, status: newStatus } : item)) }
-        : order
-    );
-    setOrders(updatedOrders);
-    setFilteredOrders(
-      tableFilter === 'all'
-        ? updatedOrders
-        : updatedOrders.filter((o) => o.tableNumber === parseInt(tableFilter))
-    );
-    if (selectedOrder?.id === orderId)
-      setSelectedOrder(updatedOrders.find((o) => o.id === orderId));
+  const stationType = 'kitchen'; // Hardcoded untuk kitchen station
+
+  // 🔥 FETCH ORDERS dengan auto-refetch 30 detik
+  const { 
+    data: ordersResponse, 
+    isLoading, 
+    isError,
+    error,
+    dataUpdatedAt,
+    refetch,
+    isFetching
+  } = useQuery({
+    queryKey: ['station-orders', stationType],
+    queryFn: () => kitchenApi.getOrders(stationType, { status: 'pending' }),
+    refetchInterval: 30000, // Auto-refetch setiap 30 detik
+  });
+
+  // Transform data dari backend
+  const orders = transformBackendOrders(ordersResponse) || [];
+  
+  // Filter by table (client-side)
+  const filteredOrders = tableFilter === 'all' 
+    ? orders 
+    : orders.filter(o => o.tableNumber === parseInt(tableFilter));
+
+  // 🔥 MUTATION untuk update status item
+  const updateStatusMutation = useMutation({
+    mutationFn: ({ itemId, status }) => 
+      kitchenApi.updateItemStatus(itemId, mapStatusToBackend(status)),
+    onMutate: async ({ itemId, status }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries(['station-orders', stationType]);
+
+      // Snapshot previous value (untuk rollback jika error)
+      const previousOrders = queryClient.getQueryData(['station-orders', stationType]);
+
+      // Optimistic update
+      queryClient.setQueryData(['station-orders', stationType], (old) => {
+        if (!old?.data?.orders) return old;
+        
+        return {
+          ...old,
+          data: {
+            ...old.data,
+            orders: old.data.orders.map(order => ({
+              ...order,
+              items: order.items.map(item => 
+                item.id === itemId 
+                  ? { ...item, status: mapStatusToBackend(status) }
+                  : item
+              )
+            }))
+          }
+        };
+      });
+
+      return { previousOrders };
+    },
+    onError: (err, variables, context) => {
+      // Rollback on error
+      if (context?.previousOrders) {
+        queryClient.setQueryData(['station-orders', stationType], context.previousOrders);
+      }
+      alert('Gagal update status: ' + (err.response?.data?.message || err.message));
+    },
+    onSuccess: () => {
+      // Refetch untuk sinkronisasi dengan server
+      queryClient.invalidateQueries(['station-orders', stationType]);
+    },
+  });
+
+  const handleItemStatusUpdate = (itemId, newStatus) => {
+    updateStatusMutation.mutate({ itemId, status: newStatus });
   };
 
   const handleTableFilterChange = (table) => {
     setTableFilter(table);
-    setFilteredOrders(
-      table === 'all' ? orders : orders.filter((o) => o.tableNumber === parseInt(table))
-    );
   };
 
-  const handleViewDetails = (order) => setSelectedOrder(order);
+  const handleViewDetails = (order) => {
+    setSelectedOrder(order);
+  };
 
-  const getTotalProcessingItems = () =>
-    orders.reduce((total, order) => total + order.items.filter((item) => item.status === 'processing').length, 0);
+  const getTotalPendingItems = () =>
+    orders.reduce((total, order) => 
+      total + order.items.filter((item) => item.status === 'pending').length, 0);
 
+  // Hitung last update time
+  const lastUpdatedSeconds = dataUpdatedAt 
+    ? Math.floor((Date.now() - dataUpdatedAt) / 1000)
+    : 0;
+
+  // Get unique table numbers
   const tableNumbers = [...new Set(orders.map((o) => o.tableNumber))].sort((a, b) => a - b);
+
+  // Loading State (initial load)
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen bg-cream-50 items-center justify-center">
+        <div className="text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-100 rounded-full mb-4">
+            <RefreshCw size={32} className="text-primary-600 animate-spin" />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Memuat data...</h3>
+          <p className="text-gray-500">Mohon tunggu sebentar</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error State
+  if (isError) {
+    return (
+      <div className="flex min-h-screen bg-cream-50 items-center justify-center">
+        <div className="text-center max-w-md">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mb-4">
+            <WifiOff size={32} className="text-red-600" />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Gagal Memuat Data</h3>
+          <p className="text-gray-500 mb-4">
+            {error?.response?.data?.message || error?.message || 'Terjadi kesalahan saat mengambil data'}
+          </p>
+          <button
+            onClick={() => refetch()}
+            className="px-6 py-2 bg-primary-500 hover:bg-primary-600 text-white font-semibold rounded-lg transition-colors"
+          >
+            Coba Lagi
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen bg-cream-50">
@@ -245,10 +319,29 @@ const KitchenStationContent = () => {
             <h1 className="text-3xl font-bold text-gray-900">Kitchen Station</h1>
             <p className="text-gray-500 mt-1">Pesanan makanan berat yang sedang diproses</p>
           </div>
-          <div className="flex items-center gap-2 px-4 py-2 bg-orange-50 rounded-lg">
-            <span className="text-2xl font-bold text-orange-600">{getTotalProcessingItems()}</span>
-            <span className="text-sm text-orange-600 font-medium">Item Diproses</span>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 px-4 py-2 bg-orange-50 rounded-lg">
+              <span className="text-2xl font-bold text-orange-600">{getTotalPendingItems()}</span>
+              <span className="text-sm text-orange-600 font-medium">Item Pending</span>
+            </div>
+            <button
+              onClick={() => refetch()}
+              disabled={isFetching}
+              className="p-2 hover:bg-cream-100 rounded-lg transition-colors disabled:opacity-50"
+              title="Refresh data"
+            >
+              <RefreshCw size={20} className={`text-gray-600 ${isFetching ? 'animate-spin' : ''}`} />
+            </button>
           </div>
+        </div>
+
+        {/* Status Bar */}
+        <div className="bg-blue-50 border-b border-blue-200 px-8 py-2 flex items-center justify-between text-sm">
+          <div className="flex items-center gap-2 text-blue-700">
+            <Wifi size={16} />
+            <span>Last update: {lastUpdatedSeconds}s ago • Auto-refresh every 30s</span>
+          </div>
+          {isFetching && <span className="text-blue-600">Updating...</span>}
         </div>
 
         {/* Filter */}
@@ -256,7 +349,11 @@ const KitchenStationContent = () => {
           <span className="text-sm font-semibold text-gray-700 mr-2">Filter Meja:</span>
           <button
             onClick={() => handleTableFilterChange('all')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium ${tableFilter === 'all' ? 'bg-orange-500 text-white' : 'bg-cream-100 text-gray-700 hover:bg-cream-200'}`}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              tableFilter === 'all' 
+                ? 'bg-orange-500 text-white' 
+                : 'bg-cream-100 text-gray-700 hover:bg-cream-200'
+            }`}
           >
             Semua Meja
           </button>
@@ -264,7 +361,11 @@ const KitchenStationContent = () => {
             <button
               key={table}
               onClick={() => handleTableFilterChange(table.toString())}
-              className={`px-4 py-2 ml-2 rounded-lg text-sm font-medium ${tableFilter === table.toString() ? 'bg-orange-500 text-white' : 'bg-cream-100 text-gray-700 hover:bg-cream-200'}`}
+              className={`px-4 py-2 ml-2 rounded-lg text-sm font-medium transition-colors ${
+                tableFilter === table.toString() 
+                  ? 'bg-orange-500 text-white' 
+                  : 'bg-cream-100 text-gray-700 hover:bg-cream-200'
+              }`}
             >
               Meja {table}
             </button>
@@ -295,6 +396,7 @@ const KitchenStationContent = () => {
         isOpen={!!selectedOrder}
         onClose={() => setSelectedOrder(null)}
         onItemStatusUpdate={handleItemStatusUpdate}
+        isUpdating={updateStatusMutation.isPending}
       />
     </div>
   );
