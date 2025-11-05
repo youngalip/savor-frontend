@@ -11,7 +11,7 @@ import { transformBackendMenus } from '../../../utils/kitchenTransformer';
 
 const BarStockManagement = () => {
   const queryClient = useQueryClient();
-  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [subcategoryFilter, setSubcategoryFilter] = useState('all'); // ✅ CHANGED: categoryFilter → subcategoryFilter
   const [searchQuery, setSearchQuery] = useState('');
   const { isCollapsed } = useSidebar();
 
@@ -94,6 +94,14 @@ const BarStockManagement = () => {
     });
   };
 
+  // ✅ NEW: Handler untuk update availability
+  const handleAvailabilityChange = (itemId, newAvailability) => {
+    updateStockMutation.mutate({ 
+      menuId: itemId, 
+      stockData: { is_available: newAvailability } 
+    });
+  };
+
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
@@ -109,12 +117,18 @@ const BarStockManagement = () => {
     return 'safe';
   };
 
-  const categories = ['all', ...new Set(stockItems.map(item => item.categoryName))];
+  // ✅ CHANGED: Filter by subcategory instead of categoryName
+  const subcategories = ['all', ...new Set(
+    stockItems
+      .map(item => item.subcategory)
+      .filter(sub => sub) // Remove null/undefined
+  )];
   
+  // ✅ CHANGED: Filter logic menggunakan subcategory
   const filteredItems = stockItems.filter(item => {
-    const matchesCategory = categoryFilter === 'all' || item.categoryName === categoryFilter;
+    const matchesSubcategory = subcategoryFilter === 'all' || item.subcategory === subcategoryFilter;
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesSearch;
+    return matchesSubcategory && matchesSearch;
   });
 
   const totalItems = stockItems.length;
@@ -186,12 +200,13 @@ const BarStockManagement = () => {
           />
 
           <div className="p-8">
+            {/* ✅ CHANGED: Pass subcategories and subcategoryFilter */}
             <FilterBar
               searchQuery={searchQuery}
               onSearchChange={setSearchQuery}
-              categories={categories}
-              selectedCategory={categoryFilter}
-              onCategoryChange={setCategoryFilter}
+              categories={subcategories}
+              selectedCategory={subcategoryFilter}
+              onCategoryChange={setSubcategoryFilter}
             />
 
             {filteredItems.length === 0 ? (
@@ -208,7 +223,8 @@ const BarStockManagement = () => {
                       stock: item.stockQuantity,
                       minStock: item.minimumStock,
                       unit: 'porsi',
-                      price: 0
+                      price: 0,
+                      isAvailable: item.isAvailable
                     }}
                     onStockChange={handleStockChange}
                   />

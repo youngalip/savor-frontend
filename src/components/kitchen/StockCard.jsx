@@ -1,4 +1,4 @@
-const StockCard = ({ item, onStockChange }) => {
+const StockCard = ({ item, onStockChange, onAvailabilityChange }) => {
   const getStockStatus = (stock, minStock) => {
     const percentage = (stock / minStock) * 100;
     if (percentage <= 50) return 'critical';
@@ -85,6 +85,27 @@ const StockCard = ({ item, onStockChange }) => {
               +
             </button>
           </div>
+        </div>
+      </div>
+
+      {/* ✅ Availability Toggle - Below Stock */}
+      <div className="mt-3 pt-3 border-t border-cream-200">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium text-gray-700">Status</span>
+          
+          {/* Toggle Switch */}
+          <button
+            onClick={() => onAvailabilityChange && onAvailabilityChange(item.id, !item.isAvailable)}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 ${
+              item.isAvailable ? 'bg-green-500' : 'bg-gray-300'
+            }`}
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                item.isAvailable ? 'translate-x-6' : 'translate-x-1'
+              }`}
+            />
+          </button>
         </div>
       </div>
     </div>

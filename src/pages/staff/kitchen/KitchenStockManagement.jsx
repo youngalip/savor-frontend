@@ -95,6 +95,14 @@ const KitchenStockManagement = () => {
     });
   };
 
+  // ✅ NEW: Handler untuk update availability
+  const handleAvailabilityChange = (itemId, newAvailability) => {
+    updateStockMutation.mutate({ 
+      menuId: itemId, 
+      stockData: { is_available: newAvailability } 
+    });
+  };
+
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
@@ -110,12 +118,16 @@ const KitchenStockManagement = () => {
     return 'safe';
   };
 
-  // Ambil daftar subcategory unik
-  const subcategories = ['all', ...new Set(stockItems.map(item => item.categoryName))];
+  // Ambil daftar subcategory unik (filter yang null/undefined)
+  const subcategories = ['all', ...new Set(
+    stockItems
+      .map(item => item.subcategory)
+      .filter(sub => sub) // Remove null/undefined
+  )];
   
   // Filtering berdasarkan subcategory & pencarian
   const filteredItems = stockItems.filter(item => {
-    const matchesSubcategory = subcategoryFilter === 'all' || item.categoryName === subcategoryFilter;
+    const matchesSubcategory = subcategoryFilter === 'all' || item.subcategory === subcategoryFilter;
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesSubcategory && matchesSearch;
   });
@@ -210,10 +222,12 @@ const KitchenStockManagement = () => {
                       category: item.categoryName,
                       stock: item.stockQuantity,
                       minStock: item.minimumStock,
-                      unit: 'porsi', // Default unit karena backend tidak return
-                      price: 0 // Backend tidak return price
+                      unit: 'porsi',
+                      price: 0,
+                      isAvailable: item.isAvailable // ✅ ADDED
                     }}
                     onStockChange={handleStockChange}
+                    onAvailabilityChange={handleAvailabilityChange} // ✅ ADDED
                   />
                 ))}
               </div>

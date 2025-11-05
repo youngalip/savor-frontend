@@ -79,11 +79,13 @@ export const transformBackendMenus = (backendData) => {
     id: menu.id,
     name: menu.name,
     categoryName: menu.category_name,
+    subcategory: menu.subcategory || menu.category_name, // Fallback to category if no subcategory
     stockQuantity: menu.stock_quantity,
     minimumStock: menu.minimum_stock,
     isAvailable: menu.is_available,
     imageUrl: menu.image_url,
-    preparationTime: menu.preparation_time
+    preparationTime: menu.preparation_time,
+    price: menu.price || 0
   }));
 };
 
