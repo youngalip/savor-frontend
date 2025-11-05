@@ -1,41 +1,97 @@
 import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { RefreshCw, WifiOff } from 'lucide-react';
 import Sidebar, { useSidebar } from '../../../components/kitchen/Sidebar';
 import StockHeader from '../../../components/kitchen/StockHeader';
 import FilterBar from '../../../components/kitchen/FilterBar';
 import StockCard from '../../../components/kitchen/StockCard';
 import EmptyState from '../../../components/kitchen/EmptyState';
-
-const initialBarStock = [
-  { id: 'b1', name: 'Kopi Arabica', category: 'Kopi', stock: 15, unit: 'kg', minStock: 10, price: 125000 },
-  { id: 'b2', name: 'Kopi Robusta', category: 'Kopi', stock: 8, unit: 'kg', minStock: 10, price: 95000 },
-  { id: 'b3', name: 'Susu Full Cream', category: 'Dairy', stock: 35, unit: 'liter', minStock: 20, price: 18000 },
-  { id: 'b4', name: 'Susu Almond', category: 'Dairy', stock: 12, unit: 'liter', minStock: 8, price: 45000 },
-  { id: 'b5', name: 'Teh Hitam Premium', category: 'Teh', stock: 6, unit: 'kg', minStock: 8, price: 85000 },
-  { id: 'b6', name: 'Teh Hijau', category: 'Teh', stock: 4, unit: 'kg', minStock: 5, price: 95000 },
-  { id: 'b7', name: 'Gula Pasir', category: 'Pemanis', stock: 25, unit: 'kg', minStock: 15, price: 14000 },
-  { id: 'b8', name: 'Gula Aren', category: 'Pemanis', stock: 8, unit: 'kg', minStock: 10, price: 32000 },
-  { id: 'b9', name: 'Sirup Vanila', category: 'Sirup', stock: 18, unit: 'botol', minStock: 12, price: 45000 },
-  { id: 'b10', name: 'Sirup Hazelnut', category: 'Sirup', stock: 15, unit: 'botol', minStock: 12, price: 48000 },
-  { id: 'b11', name: 'Sirup Caramel', category: 'Sirup', stock: 20, unit: 'botol', minStock: 12, price: 45000 },
-  { id: 'b12', name: 'Whipped Cream', category: 'Topping', stock: 10, unit: 'kaleng', minStock: 15, price: 35000 },
-  { id: 'b13', name: 'Cokelat Bubuk', category: 'Topping', stock: 5, unit: 'kg', minStock: 8, price: 65000 },
-  { id: 'b14', name: 'Es Batu', category: 'Es & Frozen', stock: 50, unit: 'kg', minStock: 30, price: 5000 },
-  { id: 'b15', name: 'Jus Jeruk Segar', category: 'Jus', stock: 8, unit: 'liter', minStock: 10, price: 25000 },
-  { id: 'b16', name: 'Jus Lemon', category: 'Jus', stock: 6, unit: 'liter', minStock: 8, price: 28000 }
-];
+import { kitchenApi } from '../../../services/kitchenApi';
+import { transformBackendMenus } from '../../../utils/kitchenTransformer';
 
 const BarStockManagement = () => {
-  const [stockItems, setStockItems] = useState(initialBarStock);
+  const queryClient = useQueryClient();
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const { isCollapsed } = useSidebar();
 
+  const stationType = 'bar';
+
+  // 🔥 FETCH MENUS
+  const { 
+    data: menusResponse, 
+    isLoading, 
+    isError,
+    error,
+    refetch,
+    isFetching
+  } = useQuery({
+    queryKey: ['station-menus', stationType],
+    queryFn: () => kitchenApi.getMenus(stationType),
+    staleTime: 60000, // 1 menit
+  });
+
+  // Transform data dari backend
+  const stockItems = transformBackendMenus(menusResponse) || [];
+
+  // 🔥 MUTATION untuk update stock
+  const updateStockMutation = useMutation({
+    mutationFn: ({ menuId, stockData }) => 
+      kitchenApi.updateMenuStock(stationType, menuId, stockData),
+    onMutate: async ({ menuId, stockData }) => {
+      await queryClient.cancelQueries(['station-menus', stationType]);
+      const previousMenus = queryClient.getQueryData(['station-menus', stationType]);
+
+      queryClient.setQueryData(['station-menus', stationType], (old) => {
+        if (!old?.data?.data?.menus && !old?.data?.menus) return old;
+        
+        const menus = old?.data?.data?.menus || old?.data?.menus || [];
+        const updatedMenus = menus.map(menu => 
+          menu.id === menuId 
+            ? { ...menu, ...stockData }
+            : menu
+        );
+
+        if (old?.data?.data?.menus) {
+          return {
+            ...old,
+            data: {
+              ...old.data,
+              data: {
+                ...old.data.data,
+                menus: updatedMenus
+              }
+            }
+          };
+        }
+        
+        return {
+          ...old,
+          data: {
+            ...old.data,
+            menus: updatedMenus
+          }
+        };
+      });
+
+      return { previousMenus };
+    },
+    onError: (err, variables, context) => {
+      if (context?.previousMenus) {
+        queryClient.setQueryData(['station-menus', stationType], context.previousMenus);
+      }
+      alert('Gagal update stok: ' + (err.response?.data?.message || err.message));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['station-menus', stationType]);
+    },
+  });
+
   const handleStockChange = (itemId, newStock) => {
-    setStockItems(prevItems =>
-      prevItems.map(item =>
-        item.id === itemId ? { ...item, stock: newStock } : item
-      )
-    );
+    updateStockMutation.mutate({ 
+      menuId: itemId, 
+      stockData: { stock_quantity: newStock } 
+    });
   };
 
   const formatCurrency = (amount) => {
@@ -53,25 +109,61 @@ const BarStockManagement = () => {
     return 'safe';
   };
 
-  const categories = ['all', ...new Set(stockItems.map(item => item.category))];
+  const categories = ['all', ...new Set(stockItems.map(item => item.categoryName))];
   
   const filteredItems = stockItems.filter(item => {
-    const matchesCategory = categoryFilter === 'all' || item.category === categoryFilter;
+    const matchesCategory = categoryFilter === 'all' || item.categoryName === categoryFilter;
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesCategory && matchesSearch;
   });
 
   const totalItems = stockItems.length;
   const criticalItems = stockItems.filter(item => 
-    getStockStatus(item.stock, item.minStock) === 'critical'
+    getStockStatus(item.stockQuantity, item.minimumStock) === 'critical'
   ).length;
   const lowStockItems = stockItems.filter(item => {
-    const status = getStockStatus(item.stock, item.minStock);
+    const status = getStockStatus(item.stockQuantity, item.minimumStock);
     return status === 'critical' || status === 'low';
   }).length;
-  const totalValue = formatCurrency(
-    stockItems.reduce((sum, item) => sum + (item.stock * item.price), 0)
-  );
+  const totalValue = formatCurrency(0);
+
+  // Loading State
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen bg-cream-50 items-center justify-center">
+        <div className="text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-100 rounded-full mb-4">
+            <RefreshCw size={32} className="text-primary-600 animate-spin" />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Memuat data stok...</h3>
+          <p className="text-gray-500">Mohon tunggu sebentar</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error State
+  if (isError) {
+    return (
+      <div className="flex min-h-screen bg-cream-50 items-center justify-center">
+        <div className="text-center max-w-md">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mb-4">
+            <WifiOff size={32} className="text-red-600" />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Gagal Memuat Data</h3>
+          <p className="text-gray-500 mb-4">
+            {error?.response?.data?.message || error?.message || 'Terjadi kesalahan saat mengambil data'}
+          </p>
+          <button
+            onClick={() => refetch()}
+            className="px-6 py-2 bg-primary-500 hover:bg-primary-600 text-white font-semibold rounded-lg transition-colors"
+          >
+            Coba Lagi
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen bg-cream-50">
@@ -84,7 +176,7 @@ const BarStockManagement = () => {
         <div className="mt-16 lg:mt-0">
           <StockHeader
             title="Manajemen Stok Bar"
-            subtitle="Kelola inventori bahan minuman dan kopi"
+            subtitle="Kelola inventori menu minuman dan kopi"
             stats={{
               totalItems,
               criticalItems,
@@ -109,7 +201,15 @@ const BarStockManagement = () => {
                 {filteredItems.map(item => (
                   <StockCard
                     key={item.id}
-                    item={item}
+                    item={{
+                      id: item.id,
+                      name: item.name,
+                      category: item.categoryName,
+                      stock: item.stockQuantity,
+                      minStock: item.minimumStock,
+                      unit: 'porsi',
+                      price: 0
+                    }}
                     onStockChange={handleStockChange}
                   />
                 ))}

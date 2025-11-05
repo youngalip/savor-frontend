@@ -1,36 +1,98 @@
 import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { RefreshCw, WifiOff } from 'lucide-react';
 import Sidebar, { useSidebar } from '../../../components/kitchen/Sidebar';
 import StockHeader from '../../../components/kitchen/StockHeader';
 import FilterBar from '../../../components/kitchen/FilterBar';
 import StockCard from '../../../components/kitchen/StockCard';
 import EmptyState from '../../../components/kitchen/EmptyState';
-
-// Dummy data untuk stok menu (bukan bahan mentah)
-const initialKitchenStock = [
-  { id: 'm1', name: 'Nasi Goreng Spesial', subcategory: 'Mains', stock: 12, minStock: 5, price: 35000 },
-  { id: 'm2', name: 'Mie Goreng Seafood', subcategory: 'Mains', stock: 8, minStock: 5, price: 38000 },
-  { id: 'm3', name: 'Chicken Wings BBQ', subcategory: 'Bites', stock: 15, minStock: 8, price: 28000 },
-  { id: 'm4', name: 'French Fries', subcategory: 'Bites', stock: 25, minStock: 10, price: 18000 },
-  { id: 'm5', name: 'Ayam Geprek Sambal Matah', subcategory: 'Mains', stock: 10, minStock: 6, price: 42000 },
-  { id: 'm6', name: 'Tahu Crispy', subcategory: 'Bites', stock: 18, minStock: 10, price: 15000 },
-  { id: 'm7', name: 'Pasta Aglio Olio', subcategory: 'Mains', stock: 9, minStock: 5, price: 45000 },
-  { id: 'm8', name: 'Chicken Katsu', subcategory: 'Mains', stock: 5, minStock: 8, price: 40000 },
-  { id: 'm9', name: 'Spring Rolls', subcategory: 'Bites', stock: 6, minStock: 5, price: 22000 },
-  { id: 'm10', name: 'Beef Teriyaki Rice Bowl', subcategory: 'Mains', stock: 4, minStock: 6, price: 48000 }
-];
+import { kitchenApi } from '../../../services/kitchenApi';
+import { transformBackendMenus } from '../../../utils/kitchenTransformer';
 
 const KitchenStockManagement = () => {
-  const [stockItems, setStockItems] = useState(initialKitchenStock);
+  const queryClient = useQueryClient();
   const [subcategoryFilter, setSubcategoryFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const { isCollapsed } = useSidebar();
 
+  const stationType = 'kitchen';
+
+  // 🔥 FETCH MENUS
+  const { 
+    data: menusResponse, 
+    isLoading, 
+    isError,
+    error,
+    refetch,
+    isFetching
+  } = useQuery({
+    queryKey: ['station-menus', stationType],
+    queryFn: () => kitchenApi.getMenus(stationType),
+    staleTime: 60000, // 1 menit
+  });
+
+  // Transform data dari backend
+  const stockItems = transformBackendMenus(menusResponse) || [];
+
+  // 🔥 MUTATION untuk update stock
+  const updateStockMutation = useMutation({
+    mutationFn: ({ menuId, stockData }) => 
+      kitchenApi.updateMenuStock(stationType, menuId, stockData),
+    onMutate: async ({ menuId, stockData }) => {
+      await queryClient.cancelQueries(['station-menus', stationType]);
+      const previousMenus = queryClient.getQueryData(['station-menus', stationType]);
+
+      // Optimistic update
+      queryClient.setQueryData(['station-menus', stationType], (old) => {
+        if (!old?.data?.data?.menus && !old?.data?.menus) return old;
+        
+        const menus = old?.data?.data?.menus || old?.data?.menus || [];
+        const updatedMenus = menus.map(menu => 
+          menu.id === menuId 
+            ? { ...menu, ...stockData }
+            : menu
+        );
+
+        if (old?.data?.data?.menus) {
+          return {
+            ...old,
+            data: {
+              ...old.data,
+              data: {
+                ...old.data.data,
+                menus: updatedMenus
+              }
+            }
+          };
+        }
+        
+        return {
+          ...old,
+          data: {
+            ...old.data,
+            menus: updatedMenus
+          }
+        };
+      });
+
+      return { previousMenus };
+    },
+    onError: (err, variables, context) => {
+      if (context?.previousMenus) {
+        queryClient.setQueryData(['station-menus', stationType], context.previousMenus);
+      }
+      alert('Gagal update stok: ' + (err.response?.data?.message || err.message));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['station-menus', stationType]);
+    },
+  });
+
   const handleStockChange = (itemId, newStock) => {
-    setStockItems(prevItems =>
-      prevItems.map(item =>
-        item.id === itemId ? { ...item, stock: newStock } : item
-      )
-    );
+    updateStockMutation.mutate({ 
+      menuId: itemId, 
+      stockData: { stock_quantity: newStock } 
+    });
   };
 
   const formatCurrency = (amount) => {
@@ -49,26 +111,62 @@ const KitchenStockManagement = () => {
   };
 
   // Ambil daftar subcategory unik
-  const subcategories = ['all', ...new Set(stockItems.map(item => item.subcategory))];
+  const subcategories = ['all', ...new Set(stockItems.map(item => item.categoryName))];
   
   // Filtering berdasarkan subcategory & pencarian
   const filteredItems = stockItems.filter(item => {
-    const matchesSubcategory = subcategoryFilter === 'all' || item.subcategory === subcategoryFilter;
+    const matchesSubcategory = subcategoryFilter === 'all' || item.categoryName === subcategoryFilter;
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesSubcategory && matchesSearch;
   });
 
   const totalItems = stockItems.length;
   const criticalItems = stockItems.filter(item => 
-    getStockStatus(item.stock, item.minStock) === 'critical'
+    getStockStatus(item.stockQuantity, item.minimumStock) === 'critical'
   ).length;
   const lowStockItems = stockItems.filter(item => {
-    const status = getStockStatus(item.stock, item.minStock);
+    const status = getStockStatus(item.stockQuantity, item.minimumStock);
     return status === 'critical' || status === 'low';
   }).length;
-  const totalValue = formatCurrency(
-    stockItems.reduce((sum, item) => sum + (item.stock * item.price), 0)
-  );
+  const totalValue = formatCurrency(0); // Backend tidak return price
+
+  // Loading State
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen bg-cream-50 items-center justify-center">
+        <div className="text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-100 rounded-full mb-4">
+            <RefreshCw size={32} className="text-primary-600 animate-spin" />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Memuat data stok...</h3>
+          <p className="text-gray-500">Mohon tunggu sebentar</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error State
+  if (isError) {
+    return (
+      <div className="flex min-h-screen bg-cream-50 items-center justify-center">
+        <div className="text-center max-w-md">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mb-4">
+            <WifiOff size={32} className="text-red-600" />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Gagal Memuat Data</h3>
+          <p className="text-gray-500 mb-4">
+            {error?.response?.data?.message || error?.message || 'Terjadi kesalahan saat mengambil data'}
+          </p>
+          <button
+            onClick={() => refetch()}
+            className="px-6 py-2 bg-primary-500 hover:bg-primary-600 text-white font-semibold rounded-lg transition-colors"
+          >
+            Coba Lagi
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen bg-cream-50">
@@ -106,7 +204,15 @@ const KitchenStockManagement = () => {
                 {filteredItems.map(item => (
                   <StockCard
                     key={item.id}
-                    item={item}
+                    item={{
+                      id: item.id,
+                      name: item.name,
+                      category: item.categoryName,
+                      stock: item.stockQuantity,
+                      minStock: item.minimumStock,
+                      unit: 'porsi', // Default unit karena backend tidak return
+                      price: 0 // Backend tidak return price
+                    }}
                     onStockChange={handleStockChange}
                   />
                 ))}

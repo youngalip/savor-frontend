@@ -1,12 +1,15 @@
 /**
  * Transform backend orders response to frontend format
- * @param {object} backendData - Backend API response
+ * @param {object} backendData - Backend API response (Axios response)
  * @returns {array} Transformed orders array
  */
 export const transformBackendOrders = (backendData) => {
-  if (!backendData?.data?.orders) return [];
+  // Handle Axios response structure: response.data.data.orders
+  const orders = backendData?.data?.data?.orders || backendData?.data?.orders || [];
+  
+  if (!orders || orders.length === 0) return [];
 
-  return backendData.data.orders.map(order => ({
+  return orders.map(order => ({
     // Order level
     id: order.order_number, // Display ID (e.g., "ORD-001")
     orderId: order.order_id, // Actual database ID
@@ -63,13 +66,16 @@ export const mapStatusToFrontend = (backendStatus) => {
 
 /**
  * Transform backend menus response to frontend format
- * @param {object} backendData - Backend API response
+ * @param {object} backendData - Backend API response (Axios response)
  * @returns {array} Transformed menus array
  */
 export const transformBackendMenus = (backendData) => {
-  if (!backendData?.data?.menus) return [];
+  // Handle Axios response structure: response.data.data.menus
+  const menus = backendData?.data?.data?.menus || backendData?.data?.menus || [];
+  
+  if (!menus || menus.length === 0) return [];
 
-  return backendData.data.menus.map(menu => ({
+  return menus.map(menu => ({
     id: menu.id,
     name: menu.name,
     categoryName: menu.category_name,

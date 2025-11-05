@@ -191,8 +191,8 @@ const KitchenStationContent = () => {
     queryFn: () => kitchenApi.getOrders(stationType, { status: 'pending' }),
     refetchInterval: 30000, // Auto-refetch setiap 30 detik
   });
-
-  // Transform data dari backend
+  
+  // ✅ Wrap in object karena transformer expect { data: {...} }
   const orders = transformBackendOrders(ordersResponse) || [];
   
   // Filter by table (client-side)

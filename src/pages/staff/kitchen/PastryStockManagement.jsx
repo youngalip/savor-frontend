@@ -1,43 +1,97 @@
 import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { RefreshCw, WifiOff } from 'lucide-react';
 import Sidebar, { useSidebar } from '../../../components/kitchen/Sidebar';
 import StockHeader from '../../../components/kitchen/StockHeader';
 import FilterBar from '../../../components/kitchen/FilterBar';
 import StockCard from '../../../components/kitchen/StockCard';
 import EmptyState from '../../../components/kitchen/EmptyState';
-
-const initialPastryStock = [
-  { id: 'p1', name: 'Tepung Terigu Protein Tinggi', category: 'Tepung', stock: 35, unit: 'kg', minStock: 20, price: 12000 },
-  { id: 'p2', name: 'Tepung Terigu Protein Rendah', category: 'Tepung', stock: 18, unit: 'kg', minStock: 15, price: 11000 },
-  { id: 'p3', name: 'Tepung Maizena', category: 'Tepung', stock: 8, unit: 'kg', minStock: 10, price: 15000 },
-  { id: 'p4', name: 'Gula Pasir Halus', category: 'Pemanis', stock: 40, unit: 'kg', minStock: 25, price: 14000 },
-  { id: 'p5', name: 'Gula Halus (Icing Sugar)', category: 'Pemanis', stock: 12, unit: 'kg', minStock: 10, price: 18000 },
-  { id: 'p6', name: 'Butter Unsalted', category: 'Dairy', stock: 15, unit: 'kg', minStock: 12, price: 85000 },
-  { id: 'p7', name: 'Butter Salted', category: 'Dairy', stock: 8, unit: 'kg', minStock: 10, price: 82000 },
-  { id: 'p8', name: 'Cream Cheese', category: 'Dairy', stock: 6, unit: 'kg', minStock: 8, price: 95000 },
-  { id: 'p9', name: 'Telur Ayam', category: 'Protein', stock: 180, unit: 'butir', minStock: 120, price: 2500 },
-  { id: 'p10', name: 'Cokelat Blok Dark', category: 'Cokelat', stock: 10, unit: 'kg', minStock: 8, price: 125000 },
-  { id: 'p11', name: 'Cokelat Blok White', category: 'Cokelat', stock: 5, unit: 'kg', minStock: 6, price: 135000 },
-  { id: 'p12', name: 'Cokelat Chips', category: 'Cokelat', stock: 8, unit: 'kg', minStock: 10, price: 95000 },
-  { id: 'p13', name: 'Vanilla Extract', category: 'Perasa', stock: 15, unit: 'botol', minStock: 10, price: 45000 },
-  { id: 'p14', name: 'Baking Powder', category: 'Pengembang', stock: 6, unit: 'kg', minStock: 8, price: 35000 },
-  { id: 'p15', name: 'Baking Soda', category: 'Pengembang', stock: 4, unit: 'kg', minStock: 5, price: 28000 },
-  { id: 'p16', name: 'Heavy Cream', category: 'Dairy', stock: 20, unit: 'liter', minStock: 15, price: 45000 },
-  { id: 'p17', name: 'Strawberry Topping', category: 'Topping', stock: 12, unit: 'botol', minStock: 10, price: 35000 },
-  { id: 'p18', name: 'Almond Slice', category: 'Kacang', stock: 5, unit: 'kg', minStock: 8, price: 125000 }
-];
+import { kitchenApi } from '../../../services/kitchenApi';
+import { transformBackendMenus } from '../../../utils/kitchenTransformer';
 
 const PastryStockManagement = () => {
-  const [stockItems, setStockItems] = useState(initialPastryStock);
+  const queryClient = useQueryClient();
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const { isCollapsed } = useSidebar();
 
+  const stationType = 'pastry';
+
+  // 🔥 FETCH MENUS
+  const { 
+    data: menusResponse, 
+    isLoading, 
+    isError,
+    error,
+    refetch,
+    isFetching
+  } = useQuery({
+    queryKey: ['station-menus', stationType],
+    queryFn: () => kitchenApi.getMenus(stationType),
+    staleTime: 60000, // 1 menit
+  });
+
+  // Transform data dari backend
+  const stockItems = transformBackendMenus(menusResponse) || [];
+
+  // 🔥 MUTATION untuk update stock
+  const updateStockMutation = useMutation({
+    mutationFn: ({ menuId, stockData }) => 
+      kitchenApi.updateMenuStock(stationType, menuId, stockData),
+    onMutate: async ({ menuId, stockData }) => {
+      await queryClient.cancelQueries(['station-menus', stationType]);
+      const previousMenus = queryClient.getQueryData(['station-menus', stationType]);
+
+      queryClient.setQueryData(['station-menus', stationType], (old) => {
+        if (!old?.data?.data?.menus && !old?.data?.menus) return old;
+        
+        const menus = old?.data?.data?.menus || old?.data?.menus || [];
+        const updatedMenus = menus.map(menu => 
+          menu.id === menuId 
+            ? { ...menu, ...stockData }
+            : menu
+        );
+
+        if (old?.data?.data?.menus) {
+          return {
+            ...old,
+            data: {
+              ...old.data,
+              data: {
+                ...old.data.data,
+                menus: updatedMenus
+              }
+            }
+          };
+        }
+        
+        return {
+          ...old,
+          data: {
+            ...old.data,
+            menus: updatedMenus
+          }
+        };
+      });
+
+      return { previousMenus };
+    },
+    onError: (err, variables, context) => {
+      if (context?.previousMenus) {
+        queryClient.setQueryData(['station-menus', stationType], context.previousMenus);
+      }
+      alert('Gagal update stok: ' + (err.response?.data?.message || err.message));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['station-menus', stationType]);
+    },
+  });
+
   const handleStockChange = (itemId, newStock) => {
-    setStockItems(prevItems =>
-      prevItems.map(item =>
-        item.id === itemId ? { ...item, stock: newStock } : item
-      )
-    );
+    updateStockMutation.mutate({ 
+      menuId: itemId, 
+      stockData: { stock_quantity: newStock } 
+    });
   };
 
   const formatCurrency = (amount) => {
@@ -55,25 +109,61 @@ const PastryStockManagement = () => {
     return 'safe';
   };
 
-  const categories = ['all', ...new Set(stockItems.map(item => item.category))];
+  const categories = ['all', ...new Set(stockItems.map(item => item.categoryName))];
   
   const filteredItems = stockItems.filter(item => {
-    const matchesCategory = categoryFilter === 'all' || item.category === categoryFilter;
+    const matchesCategory = categoryFilter === 'all' || item.categoryName === categoryFilter;
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesCategory && matchesSearch;
   });
 
   const totalItems = stockItems.length;
   const criticalItems = stockItems.filter(item => 
-    getStockStatus(item.stock, item.minStock) === 'critical'
+    getStockStatus(item.stockQuantity, item.minimumStock) === 'critical'
   ).length;
   const lowStockItems = stockItems.filter(item => {
-    const status = getStockStatus(item.stock, item.minStock);
+    const status = getStockStatus(item.stockQuantity, item.minimumStock);
     return status === 'critical' || status === 'low';
   }).length;
-  const totalValue = formatCurrency(
-    stockItems.reduce((sum, item) => sum + (item.stock * item.price), 0)
-  );
+  const totalValue = formatCurrency(0);
+
+  // Loading State
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen bg-cream-50 items-center justify-center">
+        <div className="text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-100 rounded-full mb-4">
+            <RefreshCw size={32} className="text-primary-600 animate-spin" />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Memuat data stok...</h3>
+          <p className="text-gray-500">Mohon tunggu sebentar</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error State
+  if (isError) {
+    return (
+      <div className="flex min-h-screen bg-cream-50 items-center justify-center">
+        <div className="text-center max-w-md">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mb-4">
+            <WifiOff size={32} className="text-red-600" />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Gagal Memuat Data</h3>
+          <p className="text-gray-500 mb-4">
+            {error?.response?.data?.message || error?.message || 'Terjadi kesalahan saat mengambil data'}
+          </p>
+          <button
+            onClick={() => refetch()}
+            className="px-6 py-2 bg-primary-500 hover:bg-primary-600 text-white font-semibold rounded-lg transition-colors"
+          >
+            Coba Lagi
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen bg-cream-50">
@@ -86,7 +176,7 @@ const PastryStockManagement = () => {
         <div className="mt-16 lg:mt-0">
           <StockHeader
             title="Manajemen Stok Pastry"
-            subtitle="Kelola inventori bahan kue dan dessert"
+            subtitle="Kelola inventori menu kue dan dessert"
             stats={{
               totalItems,
               criticalItems,
@@ -111,7 +201,15 @@ const PastryStockManagement = () => {
                 {filteredItems.map(item => (
                   <StockCard
                     key={item.id}
-                    item={item}
+                    item={{
+                      id: item.id,
+                      name: item.name,
+                      category: item.categoryName,
+                      stock: item.stockQuantity,
+                      minStock: item.minimumStock,
+                      unit: 'porsi',
+                      price: 0
+                    }}
                     onStockChange={handleStockChange}
                   />
                 ))}

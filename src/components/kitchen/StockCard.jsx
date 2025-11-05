@@ -6,14 +6,6 @@ const StockCard = ({ item, onStockChange }) => {
     return 'safe';
   };
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0
-    }).format(amount);
-  };
-
   const status = getStockStatus(item.stock, item.minStock);
   
   const statusConfig = {
@@ -51,7 +43,7 @@ const StockCard = ({ item, onStockChange }) => {
       </div>
 
       {/* Stock Section - Inline Layout */}
-      <div className="mb-3 p-3 bg-cream-50 rounded-lg">
+      <div className="p-3 bg-cream-50 rounded-lg">
         <div className="flex items-center justify-between mb-2">
           <span className="text-xs font-medium text-gray-700">Stok Saat Ini</span>
           <span className="text-xs text-gray-500">Min: {item.minStock} {item.unit}</span>
@@ -94,12 +86,6 @@ const StockCard = ({ item, onStockChange }) => {
             </button>
           </div>
         </div>
-      </div>
-
-      {/* Price Section */}
-      <div className="pt-3 border-t border-cream-200 flex items-center justify-between gap-2">
-        <span className="text-xs text-gray-600 truncate">{formatCurrency(item.price)} / {item.unit}</span>
-        <span className="font-bold text-primary-500 text-sm whitespace-nowrap">{formatCurrency(item.stock * item.price)}</span>
       </div>
     </div>
   );
