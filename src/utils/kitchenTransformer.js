@@ -14,7 +14,7 @@ export const transformBackendOrders = (backendData) => {
     id: order.order_number, // Display ID (e.g., "ORD-001")
     orderId: order.order_id, // Actual database ID
     tableId: order.table_id,
-    tableNumber: parseInt(order.table_number),
+    tableNumber: order.table_number,
     orderTime: order.order_created_at,
     customerName: order.customer_name || 'Guest',
     

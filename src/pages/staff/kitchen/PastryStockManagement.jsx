@@ -227,6 +227,7 @@ const PastryStockManagement = () => {
                       isAvailable: item.isAvailable 
                     }}
                     onStockChange={handleStockChange}
+                    onAvailabilityChange={handleAvailabilityChange}
                   />
                 ))}
               </div>

@@ -1,7 +1,7 @@
-import { Package, AlertTriangle, TrendingUp } from 'lucide-react';
+import { Package, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
 
 const StockHeader = ({ title, subtitle, stats }) => {
-  const { totalItems, criticalItems, lowStockItems, totalValue } = stats;
+  const { totalItems, lowStockItems, availableItems, unavailableItems } = stats;
 
   return (
     <div className="bg-white border-b border-cream-200 px-8 py-6 sticky top-0 z-10">
@@ -27,12 +27,24 @@ const StockHeader = ({ title, subtitle, stats }) => {
 
         <div className="card p-4">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-red-500 rounded-lg flex items-center justify-center">
-              <AlertTriangle className="text-white" size={24} />
+            <div className="w-12 h-12 bg-green-500 rounded-lg flex items-center justify-center">
+              <CheckCircle className="text-white" size={24} />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Stok Kritis</p>
-              <p className="text-2xl font-bold text-gray-900">{criticalItems}</p>
+              <p className="text-sm text-gray-500">Tersedia</p>
+              <p className="text-2xl font-bold text-gray-900">{availableItems}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="card p-4">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-red-500 rounded-lg flex items-center justify-center">
+              <XCircle className="text-white" size={24} />
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Tidak Tersedia</p>
+              <p className="text-2xl font-bold text-gray-900">{unavailableItems}</p>
             </div>
           </div>
         </div>

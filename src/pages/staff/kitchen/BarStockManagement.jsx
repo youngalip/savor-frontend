@@ -11,7 +11,7 @@ import { transformBackendMenus } from '../../../utils/kitchenTransformer';
 
 const BarStockManagement = () => {
   const queryClient = useQueryClient();
-  const [subcategoryFilter, setSubcategoryFilter] = useState('all'); // ✅ CHANGED: categoryFilter → subcategoryFilter
+  const [subcategoryFilter, setSubcategoryFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const { isCollapsed } = useSidebar();
 
@@ -94,7 +94,6 @@ const BarStockManagement = () => {
     });
   };
 
-  // ✅ NEW: Handler untuk update availability
   const handleAvailabilityChange = (itemId, newAvailability) => {
     updateStockMutation.mutate({ 
       menuId: itemId, 
@@ -117,29 +116,32 @@ const BarStockManagement = () => {
     return 'safe';
   };
 
-  // ✅ CHANGED: Filter by subcategory instead of categoryName
   const subcategories = ['all', ...new Set(
     stockItems
       .map(item => item.subcategory)
-      .filter(sub => sub) // Remove null/undefined
+      .filter(sub => sub)
   )];
   
-  // ✅ CHANGED: Filter logic menggunakan subcategory
   const filteredItems = stockItems.filter(item => {
     const matchesSubcategory = subcategoryFilter === 'all' || item.subcategory === subcategoryFilter;
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesSubcategory && matchesSearch;
   });
 
+  // ✅ UPDATED: Stats calculation with availableItems and unavailableItems
   const totalItems = stockItems.length;
-  const criticalItems = stockItems.filter(item => 
-    getStockStatus(item.stockQuantity, item.minimumStock) === 'critical'
-  ).length;
+  
+  // ✅ Available items (is_available = true)
+  const availableItems = stockItems.filter(item => item.isAvailable).length;
+  
+  // ✅ Unavailable items (is_available = false)
+  const unavailableItems = stockItems.filter(item => !item.isAvailable).length;
+  
+  // ✅ Low stock items (stock_quantity <= minimum_stock)
   const lowStockItems = stockItems.filter(item => {
     const status = getStockStatus(item.stockQuantity, item.minimumStock);
     return status === 'critical' || status === 'low';
   }).length;
-  const totalValue = formatCurrency(0);
 
   // Loading State
   if (isLoading) {
@@ -188,19 +190,19 @@ const BarStockManagement = () => {
         ${isCollapsed ? 'lg:ml-0' : 'lg:ml-64'}
       `}>
         <div className="mt-16 lg:mt-0">
+          {/* ✅ UPDATED: Pass correct stats to StockHeader */}
           <StockHeader
             title="Manajemen Stok Bar"
             subtitle="Kelola inventori menu minuman dan kopi"
             stats={{
               totalItems,
-              criticalItems,
-              lowStockItems,
-              totalValue
+              availableItems,
+              unavailableItems,
+              lowStockItems
             }}
           />
 
           <div className="p-8">
-            {/* ✅ CHANGED: Pass subcategories and subcategoryFilter */}
             <FilterBar
               searchQuery={searchQuery}
               onSearchChange={setSearchQuery}
@@ -227,6 +229,7 @@ const BarStockManagement = () => {
                       isAvailable: item.isAvailable
                     }}
                     onStockChange={handleStockChange}
+                    onAvailabilityChange={handleAvailabilityChange}
                   />
                 ))}
               </div>
