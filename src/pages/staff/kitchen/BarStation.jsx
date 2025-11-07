@@ -13,8 +13,15 @@ const formatDate = (date) =>
 
 // --- Order Card ---
 const OrderCard = ({ order, onViewDetails }) => {
-  const pendingItems = order.items.filter((item) => item.status === 'pending');
-  const doneItems = order.items.filter((item) => item.status === 'done');
+  // ✅ Count by quantity, not by menu items
+  const pendingQty = order.items
+    .filter(item => item.status === 'pending')
+    .reduce((sum, item) => sum + item.quantity, 0);
+    
+  const doneQty = order.items
+    .filter(item => item.status === 'done')
+    .reduce((sum, item) => sum + item.quantity, 0);
+    
   const totalItems = order.items.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
@@ -49,10 +56,10 @@ const OrderCard = ({ order, onViewDetails }) => {
 
       <div className="flex flex-wrap gap-2 mb-4">
         <span className="px-3 py-1 rounded-full text-xs font-medium border bg-blue-50 text-blue-700 border-blue-200">
-          Pending: {pendingItems.length}
+          Pending: {pendingQty}
         </span>
         <span className="px-3 py-1 rounded-full text-xs font-medium border bg-green-50 text-green-700 border-green-200">
-          Siap: {doneItems.length}
+          Siap: {doneQty}
         </span>
       </div>
 
@@ -73,6 +80,11 @@ const OrderCard = ({ order, onViewDetails }) => {
 const OrderModal = ({ order, isOpen, onClose, onItemStatusUpdate, isUpdating }) => {
   if (!isOpen || !order) return null;
 
+  // ✅ Count by quantity
+  const pendingQty = order.items
+    .filter(item => item.status === 'pending')
+    .reduce((sum, item) => sum + item.quantity, 0);
+  
   const pendingItems = order.items.filter((item) => item.status === 'pending');
   const allItemsDone = order.items.every((item) => item.status === 'done');
 
@@ -129,12 +141,12 @@ const OrderModal = ({ order, isOpen, onClose, onItemStatusUpdate, isUpdating }) 
             </div>
           )}
 
-          {pendingItems.length > 0 && (
+          {pendingQty > 0 && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 flex gap-3 items-start">
               <AlertCircle size={20} className="text-blue-600 flex-shrink-0 mt-0.5" />
               <div>
                 <h4 className="font-semibold text-blue-900 mb-1">Dalam Proses</h4>
-                <p className="text-sm text-blue-800">Masih ada {pendingItems.length} item yang perlu diselesaikan.</p>
+                <p className="text-sm text-blue-800">Masih ada {pendingQty} item yang perlu diselesaikan.</p>
               </div>
             </div>
           )}
@@ -336,7 +348,10 @@ const BarStationContent = () => {
 
   const getTotalPendingItems = () =>
     orders.reduce((total, order) => 
-      total + order.items.filter((item) => item.status === 'pending').length, 0);
+      total + order.items
+        .filter(item => item.status === 'pending')
+        .reduce((sum, item) => sum + item.quantity, 0)
+    , 0);
 
   const lastUpdatedSeconds = dataUpdatedAt 
     ? Math.floor((Date.now() - dataUpdatedAt) / 1000)

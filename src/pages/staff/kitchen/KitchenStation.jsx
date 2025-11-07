@@ -13,8 +13,15 @@ const formatDate = (date) =>
 
 // --- Order Card ---
 const OrderCard = ({ order, onViewDetails }) => {
-  const pendingItems = order.items.filter((item) => item.status === 'pending');
-  const doneItems = order.items.filter((item) => item.status === 'done');
+  // ✅ Count by quantity, not by menu items
+  const pendingQty = order.items
+    .filter(item => item.status === 'pending')
+    .reduce((sum, item) => sum + item.quantity, 0);
+    
+  const doneQty = order.items
+    .filter(item => item.status === 'done')
+    .reduce((sum, item) => sum + item.quantity, 0);
+    
   const totalItems = order.items.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
@@ -49,10 +56,10 @@ const OrderCard = ({ order, onViewDetails }) => {
 
       <div className="flex flex-wrap gap-2 mb-4">
         <span className="px-3 py-1 rounded-full text-xs font-medium border bg-blue-50 text-blue-700 border-blue-200">
-          Pending: {pendingItems.length}
+          Pending: {pendingQty}
         </span>
         <span className="px-3 py-1 rounded-full text-xs font-medium border bg-green-50 text-green-700 border-green-200">
-          Siap: {doneItems.length}
+          Siap: {doneQty}
         </span>
       </div>
 
@@ -73,6 +80,11 @@ const OrderCard = ({ order, onViewDetails }) => {
 const OrderModal = ({ order, isOpen, onClose, onItemStatusUpdate, isUpdating }) => {
   if (!isOpen || !order) return null;
 
+  // ✅ Count by quantity
+  const pendingQty = order.items
+    .filter(item => item.status === 'pending')
+    .reduce((sum, item) => sum + item.quantity, 0);
+  
   const pendingItems = order.items.filter((item) => item.status === 'pending');
   const allItemsDone = order.items.every((item) => item.status === 'done');
 
@@ -129,12 +141,12 @@ const OrderModal = ({ order, isOpen, onClose, onItemStatusUpdate, isUpdating }) 
             </div>
           )}
 
-          {pendingItems.length > 0 && (
+          {pendingQty > 0 && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 flex gap-3 items-start">
               <AlertCircle size={20} className="text-blue-600 flex-shrink-0 mt-0.5" />
               <div>
                 <h4 className="font-semibold text-blue-900 mb-1">Dalam Proses</h4>
-                <p className="text-sm text-blue-800">Masih ada {pendingItems.length} item yang perlu diselesaikan.</p>
+                <p className="text-sm text-blue-800">Masih ada {pendingQty} item yang perlu diselesaikan.</p>
               </div>
             </div>
           )}
@@ -282,9 +294,14 @@ const KitchenStationContent = () => {
 
   const orders = transformBackendOrders(ordersResponse) || [];
   
+  // ✅ Filter out orders dengan semua item done (client-side safety)
+  const activeOrders = orders.filter(order => 
+    order.items.some(item => item.status === 'pending')
+  );
+  
   const filteredOrders = tableFilter === 'all' 
-    ? orders 
-    : orderorders.filter(o => o.tableNumber === tableFilter)
+    ? activeOrders 
+    : activeOrders.filter(o => o.tableNumber === parseInt(tableFilter));
 
   // 🔥 MUTATION untuk update status item
   const updateStatusMutation = useMutation({
@@ -297,18 +314,26 @@ const KitchenStationContent = () => {
       queryClient.setQueryData(['station-orders', stationType], (old) => {
         if (!old?.data?.orders) return old;
         
+        // Update item status
+        const updatedOrders = old.data.orders.map(order => ({
+          ...order,
+          items: order.items.map(item => 
+            item.id === itemId 
+              ? { ...item, status: mapStatusToBackend(status) }
+              : item
+          )
+        }))
+        // ✅ Remove orders where ALL items are done
+        .filter(order => 
+          order.items.some(item => item.status.toLowerCase() === 'pending')
+        );
+        
         return {
           ...old,
           data: {
             ...old.data,
-            orders: old.data.orders.map(order => ({
-              ...order,
-              items: order.items.map(item => 
-                item.id === itemId 
-                  ? { ...item, status: mapStatusToBackend(status) }
-                  : item
-              )
-            }))
+            orders: updatedOrders,
+            total_orders: updatedOrders.length
           }
         };
       });
@@ -339,14 +364,17 @@ const KitchenStationContent = () => {
   };
 
   const getTotalPendingItems = () =>
-    orders.reduce((total, order) => 
-      total + order.items.filter((item) => item.status === 'pending').length, 0);
+    activeOrders.reduce((total, order) => 
+      total + order.items
+        .filter(item => item.status === 'pending')
+        .reduce((sum, item) => sum + item.quantity, 0)
+    , 0);
 
   const lastUpdatedSeconds = dataUpdatedAt 
     ? Math.floor((Date.now() - dataUpdatedAt) / 1000)
     : 0;
 
-  const tableNumbers = [...new Set(orders.map((o) => o.tableNumber))].sort((a, b) => a - b);
+  const tableNumbers = [...new Set(activeOrders.map((o) => o.tableNumber))].sort((a, b) => a - b);
 
   // Loading State
   if (isLoading) {
