@@ -14,7 +14,6 @@ const OrderHistoryPage = () => {
   const navigate = useNavigate()
   const { addItem } = useCartStore()
   
-  // State
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -22,7 +21,6 @@ const OrderHistoryPage = () => {
   const [selectedOrder, setSelectedOrder] = useState(null)
   const [showDetailModal, setShowDetailModal] = useState(false)
   
-  // Stats
   const [stats, setStats] = useState({
     totalOrders: 0,
     totalSpent: 0
@@ -38,12 +36,14 @@ const OrderHistoryPage = () => {
       setError(null)
       
       const result = await orderHistoryService.getDeviceHistory()
+      console.log('📦 [HistoryPage] result:', result)
       
       if (result.success) {
-        setOrders(result.data.orders || [])
+        const payload = result.data
+        setOrders(payload.orders || [])
         setStats({
-          totalOrders: result.data.total_orders || 0,
-          totalSpent: result.data.total_spent || 0
+          totalOrders: payload.total_orders || 0,
+          totalSpent: payload.total_spent || 0
         })
       } else {
         setError(result.error || 'Failed to load order history')
@@ -74,11 +74,8 @@ const OrderHistoryPage = () => {
 
   const handleReorder = (order) => {
     try {
-      // Add all items from order to cart
       if (order.items && order.items.length > 0) {
         order.items.forEach(item => {
-          // Assuming your cart store has an addItem method
-          // You may need to adjust this based on your actual cart implementation
           addItem({
             id: item.menu_id,
             name: item.menu_name,
@@ -87,7 +84,6 @@ const OrderHistoryPage = () => {
             notes: item.special_notes || ''
           })
         })
-        
         alert('Items added to cart!')
         handleCloseModal()
         navigate('/cart')
@@ -102,7 +98,6 @@ const OrderHistoryPage = () => {
     navigate(-1)
   }
 
-  // Loading State
   if (loading) {
     return (
       <div className="min-h-screen bg-cream-50 flex items-center justify-center">
@@ -114,7 +109,6 @@ const OrderHistoryPage = () => {
     )
   }
 
-  // Error State
   if (error) {
     return (
       <div className="min-h-screen bg-cream-50">
@@ -170,7 +164,6 @@ const OrderHistoryPage = () => {
 
       {/* Content */}
       <div className="pb-8">
-        {/* Empty State */}
         {orders.length === 0 ? (
           <EmptyHistoryState />
         ) : (

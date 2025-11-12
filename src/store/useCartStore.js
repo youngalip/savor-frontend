@@ -106,7 +106,7 @@ const useCartStore = create(
         orderHistory: []
       }),
 
-      // Cart calculations - UPDATED dengan tax & service
+      // ---- Kalkulasi (subtotal, service, tax, total) ----
       getSubtotal: () => {
         const { items } = get()
         return items.reduce((total, item) => {
@@ -116,40 +116,33 @@ const useCartStore = create(
         }, 0)
       },
       
-      // NEW: Calculate service charge
       getServiceCharge: () => {
         const { serviceChargeRate } = get()
         const subtotal = get().getSubtotal()
         return Math.round(subtotal * serviceChargeRate)
       },
 
-      // NEW: Calculate tax base
       getTaxBase: () => {
         const subtotal = get().getSubtotal()
         const serviceCharge = get().getServiceCharge()
         return subtotal + serviceCharge
       },
 
-      // NEW: Calculate tax
       getTax: () => {
         const { taxRate } = get()
         const taxBase = get().getTaxBase()
         return Math.round(taxBase * taxRate)
       },
       
-      // DEPRECATED: Old service fee method
-      getServiceFee: () => {
-        return get().getServiceCharge() // Use new method
-      },
+      // Back-compat alias
+      getServiceFee: () => get().getServiceCharge(),
       
-      // UPDATED: Total dengan tax & service
       getTotal: () => {
         const taxBase = get().getTaxBase()
         const tax = get().getTax()
         return taxBase + tax
       },
 
-      // NEW: Get full breakdown
       getBreakdown: () => {
         const { serviceChargeRate, taxRate } = get()
         const subtotal = get().getSubtotal()
@@ -180,7 +173,7 @@ const useCartStore = create(
         return items.reduce((total, item) => total + item.quantity, 0)
       },
 
-      // Backend integration actions
+      // ---- Integrasi backend ----
       validateCart: async () => {
         const { items } = get()
         
@@ -204,7 +197,14 @@ const useCartStore = create(
         }
       },
 
-      createOrder: async (customerEmail, orderNotes = null) => {
+      /**
+       * createOrder — BACKWARD COMPAT
+       * Signature lama: createOrder(customerEmail, orderNotes?)
+       * Signature baru (opsional): createOrder(customerEmail, orderNotes?, paymentMethod?)
+       * - Jika customerEmail ada → 'non_cash'
+       * - Jika customerEmail kosong → 'cash'
+       */
+      createOrder: async (customerEmail, orderNotes = null, paymentMethodOverride = null) => {
         const { items, sessionToken } = get()
         
         if (!sessionToken) {
@@ -224,7 +224,7 @@ const useCartStore = create(
         set({ isCreatingOrder: true })
 
         try {
-          // Validate cart first
+          // 1) Validasi cart
           const validation = await get().validateCart()
           if (!validation.isValid) {
             return {
@@ -233,17 +233,23 @@ const useCartStore = create(
             }
           }
 
-          // Create order
+          // 2) Tentukan payment_method
+          const paymentMethod = paymentMethodOverride 
+            ? paymentMethodOverride 
+            : (customerEmail ? 'non_cash' : 'cash')
+
+          // 3) Create order ke backend
           const result = await orderService.createOrder(
             items, 
             customerEmail, 
-            orderNotes
+            orderNotes,
+            paymentMethod // ⬅️ penting: kirim payment_method
           )
 
           if (result.success) {
             set({ 
               currentOrder: result.data,
-              // Don't clear cart yet - wait for payment success
+              // Cart dibersihkan saat payment sukses (completeOrder)
             })
           }
 
@@ -263,11 +269,9 @@ const useCartStore = create(
       getOrderStatus: async (orderUuid) => {
         try {
           const result = await orderService.getOrder(orderUuid)
-          
           if (result.success) {
             set({ currentOrder: result.data })
           }
-          
           return result
         } catch (error) {
           console.error('Get order status error:', error)
@@ -281,19 +285,14 @@ const useCartStore = create(
       // Load order history
       loadOrderHistory: async () => {
         try {
-          const result = await orderService.getOrderHistory()
-          
+          const result = await orderService.getOrderHistory();
           if (result.success) {
-            set({ orderHistory: result.data })
+            set({ orderHistory: result.data });
           }
-          
-          return result
+          return result;
         } catch (error) {
-          console.error('Load order history error:', error)
-          return {
-            success: false,
-            error: error.message
-          }
+          console.error('Load order history error:', error);
+          return { success: false, error: error.message };
         }
       },
 
