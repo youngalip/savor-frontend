@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 // src/components/history/OrderDetailModal.jsx
 
 import React from 'react'
@@ -6,6 +7,8 @@ import { formatCurrency } from '../../utils/formatters'
 
 const OrderDetailModal = ({ order, onClose, onReorder }) => {
   if (!order) return null
+
+  const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0)
 
   const getStatusColor = () => {
     switch (order.payment_status) {
@@ -22,30 +25,34 @@ const OrderDetailModal = ({ order, onClose, onReorder }) => {
 
   const formatDate = (dateString) => {
     try {
-      const date = new Date(dateString)
-      return date.toLocaleDateString('id-ID', {
+      if (!dateString) return '-'
+      const d = new Date(dateString)
+      if (isNaN(d.getTime())) return '-'
+      return d.toLocaleDateString('id-ID', {
         day: 'numeric',
         month: 'long',
         year: 'numeric',
         hour: '2-digit',
         minute: '2-digit'
       })
-    } catch (error) {
-      return dateString
+    } catch {
+      return '-'
     }
   }
 
+  // Pastikan angka aman (fallback ke 0)
+  const subtotal = num(order.subtotal)
+  const serviceCharge = num(order.service_charge)
+  const tax = num(order.tax)
+  const total = num(order.total_amount)
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end sm:items-center justify-center">
-      {/* Modal Content */}
       <div className="bg-white w-full sm:max-w-2xl sm:rounded-3xl rounded-t-3xl max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-cream-200 px-6 py-4 flex items-center justify-between rounded-t-3xl">
           <h2 className="text-xl font-bold text-gray-900">Order Details</h2>
-          <button
-            onClick={onClose}
-            className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-cream-100 transition-colors"
-          >
+          <button onClick={onClose} className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-cream-100 transition-colors">
             <X className="w-6 h-6 text-gray-600" />
           </button>
         </div>
@@ -63,7 +70,7 @@ const OrderDetailModal = ({ order, onClose, onReorder }) => {
                 <span>{formatDate(order.created_at)}</span>
               </div>
             </div>
-            
+
             <div className={`flex items-center space-x-2 px-4 py-2 rounded-full ${getStatusColor()}`}>
               {order.payment_status === 'Paid' && <CheckCircle className="w-5 h-5" />}
               {order.payment_status === 'Pending' && <Clock className="w-5 h-5" />}
@@ -90,7 +97,7 @@ const OrderDetailModal = ({ order, onClose, onReorder }) => {
           <div className="mb-6">
             <h4 className="font-bold text-gray-900 mb-4">Order Items</h4>
             <div className="space-y-3">
-              {order.items && order.items.map((item, index) => (
+              {order.items?.map((item, index) => (
                 <div key={index} className="flex justify-between items-start">
                   <div className="flex-1">
                     <div className="font-medium text-gray-900">
@@ -129,35 +136,34 @@ const OrderDetailModal = ({ order, onClose, onReorder }) => {
           {/* Price Breakdown */}
           <div className="border-t border-cream-200 pt-4">
             <h4 className="font-bold text-gray-900 mb-4">Payment Summary</h4>
-            
+
             <div className="space-y-3">
               <div className="flex justify-between text-gray-600">
                 <span>Subtotal</span>
-                <span>{formatCurrency(order.subtotal)}</span>
+                <span>{formatCurrency(subtotal)}</span>
               </div>
-              
+
               <div className="flex justify-between text-gray-600">
                 <span>Service Charge</span>
-                <span>{formatCurrency(order.service_charge)}</span>
+                <span>{formatCurrency(serviceCharge)}</span>
               </div>
-              
+
               <div className="flex justify-between text-gray-600">
                 <span>Tax</span>
-                <span>{formatCurrency(order.tax)}</span>
+                <span>{formatCurrency(tax)}</span>
               </div>
-              
+
               <div className="border-t border-cream-200 pt-3">
                 <div className="flex justify-between">
                   <span className="text-lg font-bold text-gray-900">Total</span>
                   <span className="text-lg font-bold text-primary-600">
-                    {formatCurrency(order.total_amount)}
+                    {formatCurrency(total)}
                   </span>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Payment Reference */}
           {order.payment_reference && (
             <div className="mt-4 text-sm text-gray-500">
               Payment Reference: {order.payment_reference}
