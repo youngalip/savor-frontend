@@ -1,118 +1,99 @@
+// src/pages/owner/OwnerDashboard.jsx
 import { useState } from 'react';
+import { toast } from 'react-hot-toast';
 import OwnerSidebar, { useOwnerSidebar } from '../../components/owner/OwnerSidebar';
+import { useDashboard } from '../../hooks/useDashboard';
+
+// Import dashboard components
+import StatCard from '../../components/owner/dashboard/StatCard';
+import CategoryChart from '../../components/owner/dashboard/CategoryChart';
+import RevenueChart from '../../components/owner/dashboard/RevenueChart';
+import TopMenusTable from '../../components/owner/dashboard/TopMenusTable';
+import HourlyChart from '../../components/owner/dashboard/HourlyChart';
+
+// Icons
 import { 
-  TrendingUp, 
+  DollarSign, 
+  Receipt, 
   Users, 
-  UtensilsCrossed, 
-  Receipt,
-  Clock,
-  CheckCircle,
-  AlertCircle,
-  DollarSign
+  TrendingUp,
+  RefreshCw,
+  Clock
 } from 'lucide-react';
 
-// Dummy Statistics Data
-const dashboardStats = {
-  todaySales: 15750000,
-  todayOrders: 87,
-  activeOrders: 12,
-  completedOrders: 75,
-  occupiedTables: 8,
-  totalTables: 15,
-  activeStaff: 12,
-  totalStaff: 15
-};
-
-// Dummy Recent Orders
-const recentOrders = [
-  {
-    id: 'ORD-101',
-    tableNumber: 5,
-    time: '14:30',
-    amount: 250000,
-    status: 'completed',
-    paymentStatus: 'paid'
-  },
-  {
-    id: 'ORD-102',
-    tableNumber: 8,
-    time: '14:45',
-    amount: 180000,
-    status: 'processing',
-    paymentStatus: 'unpaid'
-  },
-  {
-    id: 'ORD-103',
-    tableNumber: 3,
-    time: '15:00',
-    amount: 320000,
-    status: 'ready',
-    paymentStatus: 'paid'
-  },
-  {
-    id: 'ORD-104',
-    tableNumber: 12,
-    time: '15:15',
-    amount: 150000,
-    status: 'processing',
-    paymentStatus: 'unpaid'
-  }
-];
-
-// Dummy Kitchen Status
-const kitchenStatus = {
-  kitchen: { processing: 8, ready: 3 },
-  bar: { processing: 5, ready: 2 },
-  pastry: { processing: 3, ready: 1 }
-};
-
-const formatCurrency = (amount) => {
-  return new Intl.NumberFormat('id-ID', {
-    style: 'currency',
-    currency: 'IDR',
-    minimumFractionDigits: 0
-  }).format(amount);
-};
-
-const getStatusBadge = (status) => {
-  const badges = {
-    pending: { bg: 'bg-yellow-50', text: 'text-yellow-700', border: 'border-yellow-200', label: 'Pending' },
-    processing: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', label: 'Diproses' },
-    ready: { bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-200', label: 'Siap' },
-    completed: { bg: 'bg-gray-50', text: 'text-gray-700', border: 'border-gray-200', label: 'Selesai' }
-  };
-  return badges[status] || badges.pending;
-};
-
-const getPaymentBadge = (status) => {
-  const badges = {
-    paid: { bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-200', label: 'Lunas' },
-    unpaid: { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200', label: 'Belum Bayar' }
-  };
-  return badges[status] || badges.unpaid;
-};
-
-const StatCard = ({ title, value, subtitle, icon: Icon, color, trend }) => (
-  <div className="card p-6">
-    <div className="flex items-start justify-between mb-4">
-      <div className={`p-3 rounded-lg ${color}`}>
-        <Icon size={24} className="text-white" />
-      </div>
-      {trend && (
-        <div className="flex items-center gap-1 text-green-600 text-sm font-medium">
-          <TrendingUp size={16} />
-          <span>{trend}</span>
-        </div>
-      )}
-    </div>
-    <h3 className="text-2xl font-bold text-gray-900 mb-1">{value}</h3>
-    <p className="text-sm font-medium text-gray-700">{title}</p>
-    {subtitle && <p className="text-xs text-gray-500 mt-1">{subtitle}</p>}
-  </div>
-);
-
+/**
+ * Owner Dashboard Page
+ * Displays comprehensive business analytics and metrics
+ */
 const OwnerDashboard = () => {
   const { isCollapsed } = useOwnerSidebar();
+  const { data, isLoading, isError, error, refetch, isFetching, dataUpdatedAt } = useDashboard();
+
+  // Format currency
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      minimumFractionDigits: 0
+    }).format(amount);
+  };
+
+  // Format number with K/M suffix
+  const formatNumber = (num) => {
+    if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
+    if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
+    return num.toString();
+  };
+
+  // Handle manual refresh
+  const handleRefresh = async () => {
+    try {
+      await refetch();
+      toast.success('Dashboard refreshed successfully');
+    } catch (err) {
+      toast.error('Failed to refresh dashboard');
+    }
+  };
+
+  // Format last updated time
+  const getLastUpdatedText = () => {
+    if (!dataUpdatedAt) return '';
+    const minutes = Math.floor((Date.now() - dataUpdatedAt) / 60000);
+    if (minutes === 0) return 'Just now';
+    if (minutes === 1) return '1 minute ago';
+    if (minutes < 60) return `${minutes} minutes ago`;
+    const hours = Math.floor(minutes / 60);
+    return hours === 1 ? '1 hour ago' : `${hours} hours ago`;
+  };
+
+  // Show error state
+  if (isError) {
+    return (
+      <div className="flex min-h-screen bg-cream-50">
+        <OwnerSidebar />
+        <div className={`
+          flex-1 transition-all duration-300
+          ${isCollapsed ? 'lg:ml-20' : 'lg:ml-64'}
+        `}>
+          <div className="p-8 mt-16 lg:mt-0">
+            <div className="bg-red-50 border border-red-200 rounded-xl p-8 text-center">
+              <div className="text-red-600 text-6xl mb-4">⚠️</div>
+              <h2 className="text-2xl font-bold text-red-900 mb-2">Failed to Load Dashboard</h2>
+              <p className="text-red-700 mb-4">
+                {error?.response?.data?.message || error?.message || 'An error occurred'}
+              </p>
+              <button
+                onClick={handleRefresh}
+                className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Try Again
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen bg-cream-50">
@@ -122,147 +103,136 @@ const OwnerDashboard = () => {
         flex-1 transition-all duration-300
         ${isCollapsed ? 'lg:ml-20' : 'lg:ml-64'}
       `}>
-        <div className="p-8 mt-16 lg:mt-0">
+        <div className="p-4 md:p-8 mt-16 lg:mt-0">
           {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Dashboard Owner</h1>
-            <p className="text-gray-600">Overview bisnis dan operasional restaurant Anda</p>
-          </div>
-
-          {/* Stats Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <StatCard
-              title="Penjualan Hari Ini"
-              value={formatCurrency(dashboardStats.todaySales)}
-              subtitle={`${dashboardStats.todayOrders} pesanan`}
-              icon={DollarSign}
-              color="bg-primary-500"
-              trend="+12%"
-            />
-            <StatCard
-              title="Pesanan Aktif"
-              value={dashboardStats.activeOrders}
-              subtitle={`${dashboardStats.completedOrders} selesai hari ini`}
-              icon={Receipt}
-              color="bg-blue-500"
-            />
-            <StatCard
-              title="Okupansi Meja"
-              value={`${dashboardStats.occupiedTables}/${dashboardStats.totalTables}`}
-              subtitle={`${Math.round((dashboardStats.occupiedTables / dashboardStats.totalTables) * 100)}% terisi`}
-              icon={UtensilsCrossed}
-              color="bg-orange-500"
-            />
-            <StatCard
-              title="Staff Aktif"
-              value={`${dashboardStats.activeStaff}/${dashboardStats.totalStaff}`}
-              subtitle="Staff sedang bertugas"
-              icon={Users}
-              color="bg-green-500"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-            {/* Kitchen Status */}
-            <div className="card p-6">
-              <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <Clock size={20} />
-                Status Dapur
-              </h2>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-3 bg-orange-50 rounded-lg">
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900">Kitchen</p>
-                    <p className="text-xs text-gray-600">Makanan Berat</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-bold text-blue-600">{kitchenStatus.kitchen.processing} Proses</p>
-                    <p className="text-xs text-green-600">{kitchenStatus.kitchen.ready} Siap</p>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900">Bar</p>
-                    <p className="text-xs text-gray-600">Minuman</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-bold text-blue-600">{kitchenStatus.bar.processing} Proses</p>
-                    <p className="text-xs text-green-600">{kitchenStatus.bar.ready} Siap</p>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-pink-50 rounded-lg">
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900">Pastry</p>
-                    <p className="text-xs text-gray-600">Roti & Kue</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-bold text-blue-600">{kitchenStatus.pastry.processing} Proses</p>
-                    <p className="text-xs text-green-600">{kitchenStatus.pastry.ready} Siap</p>
-                  </div>
-                </div>
+          <div className="mb-6 md:mb-8">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div>
+                <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
+                  Dashboard Owner
+                </h1>
+                <p className="text-gray-600">Overview bisnis dan operasional restaurant Anda</p>
               </div>
-            </div>
-
-            {/* Recent Orders */}
-            <div className="card p-6 lg:col-span-2">
-              <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <Receipt size={20} />
-                Pesanan Terbaru
-              </h2>
-              <div className="space-y-3">
-                {recentOrders.map((order) => {
-                  const statusBadge = getStatusBadge(order.status);
-                  const paymentBadge = getPaymentBadge(order.paymentStatus);
-                  
-                  return (
-                    <div key={order.id} className="flex items-center justify-between p-4 bg-cream-50 rounded-lg hover:bg-cream-100 transition-colors">
-                      <div className="flex items-center gap-4">
-                        <div>
-                          <p className="font-semibold text-gray-900">Meja {order.tableNumber}</p>
-                          <p className="text-xs text-gray-500">{order.id} • {order.time}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <div className="text-right mr-3">
-                          <p className="font-bold text-primary-600">{formatCurrency(order.amount)}</p>
-                        </div>
-                        <div className="flex flex-col gap-1">
-                          <span className={`px-2 py-1 rounded-full text-xs font-semibold border ${statusBadge.bg} ${statusBadge.text} ${statusBadge.border}`}>
-                            {statusBadge.label}
-                          </span>
-                          <span className={`px-2 py-1 rounded-full text-xs font-semibold border ${paymentBadge.bg} ${paymentBadge.text} ${paymentBadge.border}`}>
-                            {paymentBadge.label}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+              
+              {/* Refresh Button & Last Updated */}
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <Clock size={16} />
+                  <span>{getLastUpdatedText()}</span>
+                </div>
+                <button
+                  onClick={handleRefresh}
+                  disabled={isFetching}
+                  className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <RefreshCw size={18} className={isFetching ? 'animate-spin' : ''} />
+                  <span className="hidden md:inline">Refresh</span>
+                </button>
               </div>
             </div>
           </div>
 
-          {/* Quick Actions */}
-          <div className="card p-6">
-            <h2 className="text-lg font-bold text-gray-900 mb-4">Aksi Cepat</h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <button className="p-4 bg-primary-50 hover:bg-primary-100 rounded-lg transition-colors text-center">
-                <Receipt size={24} className="text-primary-600 mx-auto mb-2" />
-                <p className="text-sm font-semibold text-gray-900">Monitor Kasir</p>
-              </button>
-              <button className="p-4 bg-orange-50 hover:bg-orange-100 rounded-lg transition-colors text-center">
-                <UtensilsCrossed size={24} className="text-orange-600 mx-auto mb-2" />
-                <p className="text-sm font-semibold text-gray-900">Monitor Dapur</p>
-              </button>
-              <button className="p-4 bg-green-50 hover:bg-green-100 rounded-lg transition-colors text-center">
-                <TrendingUp size={24} className="text-green-600 mx-auto mb-2" />
-                <p className="text-sm font-semibold text-gray-900">Laporan</p>
-              </button>
-              <button className="p-4 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors text-center">
-                <Users size={24} className="text-blue-600 mx-auto mb-2" />
-                <p className="text-sm font-semibold text-gray-900">Kelola Akun</p>
-              </button>
+          {/* Today's Stats */}
+          <div className="mb-6">
+            <h2 className="text-lg font-bold text-gray-900 mb-4">Today's Performance</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+              <StatCard
+                title="Revenue"
+                value={isLoading ? '...' : formatCurrency(data?.today?.revenue || 0)}
+                subtitle={`${data?.today?.orders_count || 0} orders`}
+                icon={DollarSign}
+                color="bg-primary-500"
+                loading={isLoading}
+              />
+              <StatCard
+                title="Orders"
+                value={isLoading ? '...' : (data?.today?.orders_count || 0).toString()}
+                subtitle="Total orders today"
+                icon={Receipt}
+                color="bg-blue-500"
+                loading={isLoading}
+              />
+              <StatCard
+                title="Customers"
+                value={isLoading ? '...' : (data?.today?.customers_count || 0).toString()}
+                subtitle="Unique customers"
+                icon={Users}
+                color="bg-orange-500"
+                loading={isLoading}
+              />
+              <StatCard
+                title="Avg Order"
+                value={isLoading ? '...' : formatCurrency(data?.today?.avg_order_value || 0)}
+                subtitle="Average per order"
+                icon={TrendingUp}
+                color="bg-green-500"
+                loading={isLoading}
+              />
             </div>
+          </div>
+
+          {/* This Month Stats */}
+          <div className="mb-6">
+            <h2 className="text-lg font-bold text-gray-900 mb-4">This Month</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+              <StatCard
+                title="Monthly Revenue"
+                value={isLoading ? '...' : formatCurrency(data?.this_month?.revenue || 0)}
+                icon={DollarSign}
+                color="bg-purple-500"
+                loading={isLoading}
+                trend={data?.this_month?.growth_rate > 0 ? 'up' : data?.this_month?.growth_rate < 0 ? 'down' : null}
+                trendValue={data?.this_month?.growth_rate || 0}
+              />
+              <StatCard
+                title="Monthly Orders"
+                value={isLoading ? '...' : (data?.this_month?.orders_count || 0).toString()}
+                subtitle="Total orders this month"
+                icon={Receipt}
+                color="bg-indigo-500"
+                loading={isLoading}
+              />
+              <StatCard
+                title="Growth Rate"
+                value={isLoading ? '...' : `${data?.this_month?.growth_rate > 0 ? '+' : ''}${data?.this_month?.growth_rate?.toFixed(1) || 0}%`}
+                subtitle="vs last month"
+                icon={data?.this_month?.growth_rate >= 0 ? TrendingUp : TrendingUp}
+                color={data?.this_month?.growth_rate >= 0 ? 'bg-green-500' : 'bg-red-500'}
+                loading={isLoading}
+              />
+            </div>
+          </div>
+
+          {/* Charts Section */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            {/* Category Breakdown */}
+            <CategoryChart 
+              data={data?.category_breakdown} 
+              loading={isLoading} 
+            />
+
+            {/* Revenue Trend */}
+            <RevenueChart 
+              data={data?.revenue_chart} 
+              loading={isLoading}
+              showDays={7} 
+            />
+          </div>
+
+          {/* Top Menus Table */}
+          <div className="mb-6">
+            <TopMenusTable 
+              data={data?.top_menus} 
+              loading={isLoading} 
+            />
+          </div>
+
+          {/* Orders by Hour */}
+          <div className="mb-6">
+            <HourlyChart 
+              data={data?.orders_by_hour} 
+              loading={isLoading} 
+            />
           </div>
         </div>
       </div>

@@ -1,268 +1,476 @@
-import { useState } from 'react';
-import OwnerSidebar, { useOwnerSidebar } from '../../components/owner/OwnerSidebar';
-import { 
-  TrendingUp, 
-  TrendingDown,
+// src/pages/owner/SalesReport.jsx
+import { useState } from "react";
+import { toast } from 'react-hot-toast';
+import OwnerSidebar, { useOwnerSidebar } from "../../components/owner/OwnerSidebar";
+
+// Hooks
+import { useOverviewReport, useRevenueReport, useMenuPerformance, usePeakHours } from '../../hooks/useReports';
+import { reportService } from '../../services/reportService';
+
+// Components
+import StatCard from '../../components/owner/dashboard/StatCard'; // Reuse from dashboard!
+import RevenueTable from '../../components/owner/reports/RevenueTable';
+import MenuPerformanceTable from '../../components/owner/reports/MenuPerformanceTable';
+import PeakHoursChart from '../../components/owner/reports/PeakHoursChart';
+import CategoryBreakdownCard from '../../components/owner/reports/CategoryBreakdownCard';
+import PaymentMethodsCard from '../../components/owner/reports/PaymentMethodsCard';
+
+// Icons
+import {
+  TrendingUp,
   DollarSign,
   ShoppingBag,
+  Users,
   Calendar,
   Download,
-  Filter
-} from 'lucide-react';
-
-// Dummy Sales Data
-const salesData = {
-  today: {
-    revenue: 15750000,
-    orders: 87,
-    avgOrder: 181034,
-    growth: 12.5
-  },
-  week: {
-    revenue: 89250000,
-    orders: 542,
-    avgOrder: 164665,
-    growth: 8.3
-  },
-  month: {
-    revenue: 387500000,
-    orders: 2345,
-    avgOrder: 165245,
-    growth: 15.7
-  }
-};
-
-const dailySales = [
-  { date: '2024-01-15', revenue: 15750000, orders: 87 },
-  { date: '2024-01-14', revenue: 14200000, orders: 79 },
-  { date: '2024-01-13', revenue: 16800000, orders: 92 },
-  { date: '2024-01-12', revenue: 13500000, orders: 75 },
-  { date: '2024-01-11', revenue: 15200000, orders: 84 },
-  { date: '2024-01-10', revenue: 14900000, orders: 82 },
-  { date: '2024-01-09', revenue: 13800000, orders: 76 }
-];
-
-const topItems = [
-  { name: 'Nasi Goreng Spesial', sold: 156, revenue: 5460000 },
-  { name: 'Ayam Bakar', sold: 98, revenue: 4410000 },
-  { name: 'Spaghetti Carbonara', sold: 87, revenue: 4785000 },
-  { name: 'Es Teh Manis', sold: 245, revenue: 1960000 },
-  { name: 'Kopi Susu', sold: 178, revenue: 3204000 }
-];
-
-const categoryBreakdown = [
-  { category: 'Kitchen', revenue: 8950000, percentage: 56.8 },
-  { category: 'Bar', revenue: 4200000, percentage: 26.7 },
-  { category: 'Pastry', revenue: 2600000, percentage: 16.5 }
-];
-
-const formatCurrency = (amount) => {
-  return new Intl.NumberFormat('id-ID', {
-    style: 'currency',
-    currency: 'IDR',
-    minimumFractionDigits: 0
-  }).format(amount);
-};
-
-const formatDate = (dateString) => {
-  return new Date(dateString).toLocaleDateString('id-ID', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric'
-  });
-};
-
-const StatCard = ({ title, value, subtitle, icon: Icon, trend, trendValue }) => (
-  <div className="card p-6">
-    <div className="flex items-start justify-between mb-4">
-      <div className={`p-3 rounded-lg bg-primary-500`}>
-        <Icon size={24} className="text-white" />
-      </div>
-      {trend && (
-        <div className={`flex items-center gap-1 text-sm font-medium ${
-          trend === 'up' ? 'text-green-600' : 'text-red-600'
-        }`}>
-          {trend === 'up' ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
-          <span>{trendValue}%</span>
-        </div>
-      )}
-    </div>
-    <h3 className="text-2xl font-bold text-gray-900 mb-1">{value}</h3>
-    <p className="text-sm font-medium text-gray-700">{title}</p>
-    {subtitle && <p className="text-xs text-gray-500 mt-1">{subtitle}</p>}
-  </div>
-);
+  RefreshCw,
+  AlertCircle,
+  BarChart3,
+  Clock,
+  PieChart as PieChartIcon,
+} from "lucide-react";
 
 const SalesReport = () => {
   const { isCollapsed } = useOwnerSidebar();
-  const [period, setPeriod] = useState('today');
+  
+  // State
+  const [dateRange, setDateRange] = useState({
+    start_date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .split("T")[0],
+    end_date: new Date().toISOString().split("T")[0],
+  });
+  const [activeTab, setActiveTab] = useState("overview");
+  const [sortBy, setSortBy] = useState("revenue");
+  const [categoryFilter, setCategoryFilter] = useState("all");
 
-  const currentData = salesData[period];
+  // React Query Hooks
+  const { 
+    data: overviewData, 
+    isLoading: overviewLoading, 
+    error: overviewError,
+    refetch: refetchOverview 
+  } = useOverviewReport(
+    dateRange.start_date,
+    dateRange.end_date,
+    activeTab === 'overview'
+  );
+
+  const { 
+    data: revenueData, 
+    isLoading: revenueLoading,
+    error: revenueError,
+    refetch: refetchRevenue 
+  } = useRevenueReport(
+    dateRange.start_date,
+    dateRange.end_date,
+    categoryFilter !== 'all' ? categoryFilter : null,
+    activeTab === 'revenue'
+  );
+
+  const { 
+    data: menuData, 
+    isLoading: menuLoading,
+    error: menuError,
+    refetch: refetchMenu 
+  } = useMenuPerformance(
+    dateRange.start_date,
+    dateRange.end_date,
+    sortBy,
+    20,
+    activeTab === 'menu-performance'
+  );
+
+  const { 
+    data: peakData, 
+    isLoading: peakLoading,
+    error: peakError,
+    refetch: refetchPeak 
+  } = usePeakHours(
+    dateRange.start_date,
+    dateRange.end_date,
+    activeTab === 'peak-hours'
+  );
+
+  // Format currency
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  // Handle refresh
+  const handleRefresh = async () => {
+    try {
+      const loadingToast = toast.loading('Refreshing data...');
+      
+      switch(activeTab) {
+        case 'overview':
+          await refetchOverview();
+          break;
+        case 'revenue':
+          await refetchRevenue();
+          break;
+        case 'menu-performance':
+          await refetchMenu();
+          break;
+        case 'peak-hours':
+          await refetchPeak();
+          break;
+      }
+      
+      toast.dismiss(loadingToast);
+      toast.success('Data refreshed successfully');
+    } catch (error) {
+      toast.dismiss();
+      toast.error('Failed to refresh data');
+    }
+  };
+
+  // Handle export
+  const handleExport = async (reportType, format) => {
+    try {
+      const loadingToast = toast.loading(`Generating ${format.toUpperCase()}...`);
+      
+      await reportService.exportReport(
+        reportType,
+        format,
+        dateRange.start_date,
+        dateRange.end_date
+      );
+      
+      toast.dismiss(loadingToast);
+      toast.success(`${format.toUpperCase()} exported successfully`);
+    } catch (error) {
+      toast.dismiss();
+      toast.error('Failed to export report');
+      console.error('Export error:', error);
+    }
+  };
+
+  // Error state for overview
+  if (overviewError && activeTab === 'overview') {
+    return (
+      <div className="flex min-h-screen bg-cream-50">
+        <OwnerSidebar />
+        <div className={`flex-1 transition-all duration-300 ${isCollapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
+          <div className="p-8 mt-16 lg:mt-0">
+            <div className="bg-red-50 border border-red-200 rounded-xl p-8 text-center">
+              <AlertCircle size={48} className="mx-auto text-red-500 mb-4" />
+              <h2 className="text-2xl font-bold text-red-900 mb-2">Failed to Load Report</h2>
+              <p className="text-red-700 mb-4">
+                {overviewError?.response?.data?.message || overviewError?.message || 'An error occurred'}
+              </p>
+              <button
+                onClick={refetchOverview}
+                className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Try Again
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen bg-cream-50">
       <OwnerSidebar />
       
-      <div className={`
-        flex-1 transition-all duration-300
-        ${isCollapsed ? 'lg:ml-20' : 'lg:ml-64'}
-      `}>
-        <div className="p-8 mt-16 lg:mt-0">
+      <div
+        className={`flex-1 transition-all duration-300 ${
+          isCollapsed ? "lg:ml-20" : "lg:ml-64"
+        }`}
+      >
+        <div className="p-8 mt-16 lg:mt-0 max-w-7xl mx-auto">
           {/* Header */}
-          <div className="flex justify-between items-center mb-6">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Laporan Penjualan</h1>
-              <p className="text-gray-600 mt-1">Analisis performa penjualan restaurant</p>
+              <h1 className="text-3xl font-bold text-gray-900">
+                Laporan Penjualan
+              </h1>
+              <p className="text-gray-600 mt-1">
+                Analisis performa dan statistik penjualan
+              </p>
             </div>
             <div className="flex gap-2">
-              <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                <Filter size={18} />
-                <span>Filter</span>
+              <button
+                onClick={handleRefresh}
+                disabled={overviewLoading || revenueLoading || menuLoading || peakLoading}
+                className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <RefreshCw size={18} className={overviewLoading ? 'animate-spin' : ''} />
+                <span>Refresh</span>
               </button>
-              <button className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors">
+              <button
+                onClick={() => handleExport(activeTab, "csv")}
+                className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors"
+              >
                 <Download size={18} />
-                <span>Export</span>
+                <span>Export CSV</span>
               </button>
             </div>
           </div>
 
-          {/* Period Filter */}
-          <div className="flex gap-2 mb-6">
+          {/* Date Range Filter */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+            <div className="flex flex-col md:flex-row gap-4 items-start md:items-end">
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Tanggal Mulai
+                </label>
+                <input
+                  type="date"
+                  value={dateRange.start_date}
+                  onChange={(e) =>
+                    setDateRange({ ...dateRange, start_date: e.target.value })
+                  }
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                />
+              </div>
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Tanggal Akhir
+                </label>
+                <input
+                  type="date"
+                  value={dateRange.end_date}
+                  onChange={(e) =>
+                    setDateRange({ ...dateRange, end_date: e.target.value })
+                  }
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Tab Navigation */}
+          <div className="flex flex-wrap gap-2 mb-6 bg-white p-2 rounded-xl shadow-sm border border-gray-200">
             <button
-              onClick={() => setPeriod('today')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                period === 'today'
-                  ? 'bg-primary-500 text-white'
-                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+              onClick={() => setActiveTab("overview")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap focus:outline-none ${
+                activeTab === "overview"
+                  ? "bg-primary-500 text-white relative z-10 shadow-sm"
+                  : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
               }`}
             >
-              Hari Ini
+              <PieChartIcon size={18} />
+              Overview
             </button>
             <button
-              onClick={() => setPeriod('week')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                period === 'week'
-                  ? 'bg-primary-500 text-white'
-                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+              onClick={() => setActiveTab("revenue")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap focus:outline-none ${
+                activeTab === "revenue"
+                  ? "bg-primary-500 text-white relative z-10 shadow-sm"
+                  : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
               }`}
             >
-              Minggu Ini
+              <DollarSign size={18} />
+              Revenue
             </button>
             <button
-              onClick={() => setPeriod('month')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                period === 'month'
-                  ? 'bg-primary-500 text-white'
-                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+              onClick={() => setActiveTab("menu-performance")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap focus:outline-none ${
+                activeTab === "menu-performance"
+                  ? "bg-primary-500 text-white relative z-10 shadow-sm"
+                  : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
               }`}
             >
-              Bulan Ini
+              <BarChart3 size={18} />
+              Menu Performance
+            </button>
+            <button
+              onClick={() => setActiveTab("peak-hours")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap focus:outline-none ${
+                activeTab === "peak-hours"
+                  ? "bg-primary-500 text-white relative z-10 shadow-sm"
+                  : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+              }`}
+            >
+              <Clock size={18} />
+              Peak Hours
             </button>
           </div>
 
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <StatCard
-              title="Total Pendapatan"
-              value={formatCurrency(currentData.revenue)}
-              icon={DollarSign}
-              trend="up"
-              trendValue={currentData.growth}
-            />
-            <StatCard
-              title="Total Pesanan"
-              value={currentData.orders}
-              subtitle="Pesanan selesai"
-              icon={ShoppingBag}
-              trend="up"
-              trendValue={currentData.growth}
-            />
-            <StatCard
-              title="Rata-rata per Pesanan"
-              value={formatCurrency(currentData.avgOrder)}
-              icon={Calendar}
-              trend="up"
-              trendValue={5.2}
-            />
-          </div>
+          {/* Overview Tab */}
+          {activeTab === "overview" && (
+            <div className="space-y-6">
+              {/* Summary Stats */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 auto-rows-fr">
+                <StatCard
+                  title="Total Pendapatan"
+                  value={formatCurrency(overviewData?.data?.summary?.total_revenue || 0)}
+                  icon={DollarSign}
+                  trend={overviewData?.data?.summary?.growth_rate > 0 ? "up" : overviewData?.data?.summary?.growth_rate < 0 ? "down" : null}
+                  trendValue={overviewData?.data?.summary?.growth_rate || 0}
+                  loading={overviewLoading}
+                />
+                <StatCard
+                  title="Total Pesanan"
+                  value={overviewData?.data?.summary?.total_orders || 0}
+                  subtitle="Pesanan selesai"
+                  icon={ShoppingBag}
+                  loading={overviewLoading}
+                />
+                <StatCard
+                  title="Total Pelanggan"
+                  value={overviewData?.data?.summary?.total_customers || 0}
+                  subtitle="Pelanggan unik"
+                  icon={Users}
+                  loading={overviewLoading}
+                />
+                <StatCard
+                  title="Rata-rata Pesanan"
+                  value={formatCurrency(overviewData?.data?.summary?.avg_order_value || 0)}
+                  icon={Calendar}
+                  loading={overviewLoading}
+                />
+              </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-            {/* Daily Sales */}
-            <div className="card p-6">
-              <h2 className="text-lg font-bold text-gray-900 mb-4">Penjualan Harian</h2>
-              <div className="space-y-3">
-                {dailySales.map((day, index) => (
-                  <div key={day.date} className="flex items-center justify-between p-3 bg-cream-50 rounded-lg">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Daily Breakdown */}
+                <RevenueTable 
+                  data={overviewData?.data?.daily_breakdown}
+                  loading={overviewLoading}
+                />
+
+                {/* Top Menus */}
+                <MenuPerformanceTable
+                  data={overviewData?.data?.top_menus}
+                  loading={overviewLoading}
+                />
+              </div>
+
+              {/* Category Breakdown & Payment Methods */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <CategoryBreakdownCard
+                  data={overviewData?.data?.category_breakdown}
+                  loading={overviewLoading}
+                />
+                
+                <PaymentMethodsCard
+                  data={overviewData?.data?.payment_methods}
+                  loading={overviewLoading}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Revenue Tab */}
+          {activeTab === "revenue" && (
+            <div className="space-y-6">
+              {/* Category Filter */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Filter Kategori
+                </label>
+                <select
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                  className="w-full md:w-64 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                >
+                  <option value="all">Semua Kategori</option>
+                  <option value="1">Kitchen</option>
+                  <option value="2">Bar</option>
+                  <option value="3">Pastry</option>
+                </select>
+              </div>
+
+              {/* Revenue Stats */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <StatCard
+                  title="Total Revenue"
+                  value={formatCurrency(revenueData?.data?.total_revenue || 0)}
+                  icon={DollarSign}
+                  trend={revenueData?.data?.growth_rate > 0 ? "up" : revenueData?.data?.growth_rate < 0 ? "down" : null}
+                  trendValue={revenueData?.data?.growth_rate || 0}
+                  loading={revenueLoading}
+                />
+                <StatCard
+                  title="Daily Average"
+                  value={formatCurrency((revenueData?.data?.total_revenue || 0) / (revenueData?.data?.daily_data?.length || 1))}
+                  subtitle="Rata-rata per hari"
+                  icon={Calendar}
+                  loading={revenueLoading}
+                />
+                <StatCard
+                  title="Growth Rate"
+                  value={`${revenueData?.data?.growth_rate > 0 ? '+' : ''}${revenueData?.data?.growth_rate?.toFixed(1) || 0}%`}
+                  subtitle="vs periode sebelumnya"
+                  icon={TrendingUp}
+                  color={revenueData?.data?.growth_rate >= 0 ? 'bg-green-500' : 'bg-red-500'}
+                  loading={revenueLoading}
+                />
+              </div>
+
+              {/* Revenue Table */}
+              <RevenueTable
+                data={revenueData?.data?.daily_data}
+                loading={revenueLoading}
+              />
+            </div>
+          )}
+
+          {/* Menu Performance Tab */}
+          {activeTab === "menu-performance" && (
+            <div className="space-y-6">
+              {/* Sort Filter */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Urutkan Berdasarkan
+                </label>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="w-full md:w-64 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                >
+                  <option value="revenue">Revenue Tertinggi</option>
+                  <option value="quantity">Terjual Terbanyak</option>
+                </select>
+              </div>
+
+              <MenuPerformanceTable
+                data={menuData?.data?.menus}
+                loading={menuLoading}
+              />
+            </div>
+          )}
+
+          {/* Peak Hours Tab */}
+          {activeTab === "peak-hours" && (
+            <div className="space-y-6">
+              <PeakHoursChart
+                data={peakData?.data?.hourly_data}
+                loading={peakLoading}
+              />
+
+              {/* Recommendations */}
+              {peakData?.data?.hourly_data && peakData.data.hourly_data.length > 0 && (
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
+                  <div className="flex gap-4">
+                    <AlertCircle
+                      className="text-blue-600 flex-shrink-0 mt-1"
+                      size={24}
+                    />
                     <div>
-                      <p className="font-semibold text-gray-900">{formatDate(day.date)}</p>
-                      <p className="text-sm text-gray-500">{day.orders} pesanan</p>
+                      <h3 className="font-semibold text-blue-900 mb-2">
+                        Rekomendasi Operasional
+                      </h3>
+                      <ul className="space-y-2 text-sm text-blue-800">
+                        <li>• Perhatikan jam-jam dengan volume pesanan tinggi untuk optimasi staff</li>
+                        <li>• Pastikan stok bahan baku mencukupi sebelum jam sibuk</li>
+                        <li>• Pertimbangkan promo khusus pada jam-jam sepi untuk meningkatkan traffic</li>
+                        <li>• Monitor efisiensi dapur pada jam puncak</li>
+                      </ul>
                     </div>
-                    <div className="text-right">
-                      <p className="font-bold text-primary-600">{formatCurrency(day.revenue)}</p>
-                      {index > 0 && (
-                        <p className={`text-xs ${
-                          day.revenue > dailySales[index - 1].revenue 
-                            ? 'text-green-600' 
-                            : 'text-red-600'
-                        }`}>
-                          {day.revenue > dailySales[index - 1].revenue ? '↑' : '↓'}
-                          {' '}
-                          {Math.abs(
-                            ((day.revenue - dailySales[index - 1].revenue) / dailySales[index - 1].revenue * 100)
-                          ).toFixed(1)}%
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Top Items */}
-            <div className="card p-6">
-              <h2 className="text-lg font-bold text-gray-900 mb-4">Menu Terlaris</h2>
-              <div className="space-y-3">
-                {topItems.map((item, index) => (
-                  <div key={item.name} className="flex items-center justify-between p-3 bg-cream-50 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
-                        <span className="text-sm font-bold text-primary-600">#{index + 1}</span>
-                      </div>
-                      <div>
-                        <p className="font-semibold text-gray-900">{item.name}</p>
-                        <p className="text-sm text-gray-500">{item.sold} terjual</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-bold text-primary-600">{formatCurrency(item.revenue)}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Category Breakdown */}
-          <div className="card p-6">
-            <h2 className="text-lg font-bold text-gray-900 mb-4">Breakdown per Kategori</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {categoryBreakdown.map((cat) => (
-                <div key={cat.category} className="p-4 bg-cream-50 rounded-lg">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="font-semibold text-gray-900">{cat.category}</p>
-                    <span className="text-sm font-medium text-primary-600">{cat.percentage}%</span>
-                  </div>
-                  <p className="text-2xl font-bold text-gray-900 mb-2">{formatCurrency(cat.revenue)}</p>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="bg-primary-500 h-2 rounded-full transition-all duration-500"
-                      style={{ width: `${cat.percentage}%` }}
-                    ></div>
                   </div>
                 </div>
-              ))}
+              )}
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>
