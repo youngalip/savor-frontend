@@ -35,6 +35,24 @@ export const useRevenueReport = (startDate, endDate, categoryId = null, enabled 
 };
 
 /**
+ * Hook for revenue aggregated with comparison (NEW)
+ * Untuk bar chart dengan 3m/6m/1y view
+ */
+export const useRevenueAggregated = (year, viewType, categoryId = null, enabled = true) => {
+  return useQuery({
+    queryKey: ['report', 'revenue-aggregated', year, viewType, categoryId],
+    queryFn: () => reportService.getRevenueAggregated(year, viewType, categoryId),
+    enabled: enabled,
+    staleTime: 5 * 60 * 1000,
+    cacheTime: 10 * 60 * 1000,
+    retry: 1,
+    onError: (error) => {
+      console.error('Revenue aggregated error:', error);
+    }
+  });
+};
+
+/**
  * Hook for menu performance
  */
 export const useMenuPerformance = (startDate, endDate, sortBy, limit, enabled = true) => {
@@ -69,6 +87,7 @@ export const usePeakHours = (startDate, endDate, enabled = true) => {
 export default {
   useOverviewReport,
   useRevenueReport,
+  useRevenueAggregated, // ADD THIS
   useMenuPerformance,
   usePeakHours
 };

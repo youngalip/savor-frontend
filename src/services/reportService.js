@@ -82,6 +82,31 @@ export const reportService = {
   },
 
   /**
+   * Get revenue aggregated with comparison
+   * NEW METHOD - untuk bar chart dengan 3m/6m/1y view
+   */
+  getRevenueAggregated: async (year, viewType, categoryId = null) => {
+    try {
+      const params = {
+        year,
+        view_type: viewType,
+      };
+      
+      if (categoryId && categoryId !== 'all') {
+        params.category_id = categoryId;
+      }
+
+      // FIX: Ganti apiService menjadi reportClient
+      // FIX: Path sesuai dengan pattern yang lain (/owner/reports/...)
+      const { data } = await reportClient.get('/owner/reports/revenue/aggregated', { params });
+      return data;
+    } catch (error) {
+      console.error('Failed to fetch aggregated revenue:', error);
+      throw error;
+    }
+  },
+
+  /**
    * Get menu performance report
    */
   getMenuPerformance: async (startDate, endDate, sortBy = 'revenue', limit = 20) => {

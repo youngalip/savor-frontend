@@ -4,16 +4,23 @@ import { toast } from 'react-hot-toast';
 import OwnerSidebar, { useOwnerSidebar } from "../../components/owner/OwnerSidebar";
 
 // Hooks
-import { useOverviewReport, useRevenueReport, useMenuPerformance, usePeakHours } from '../../hooks/useReports';
+import { 
+  useOverviewReport, 
+  useRevenueReport, 
+  useMenuPerformance, 
+  usePeakHours,
+  useRevenueAggregated  // NEW
+} from '../../hooks/useReports';
 import { reportService } from '../../services/reportService';
 
 // Components
-import StatCard from '../../components/owner/dashboard/StatCard'; // Reuse from dashboard!
+import StatCard from '../../components/owner/dashboard/StatCard';
 import RevenueTable from '../../components/owner/reports/RevenueTable';
 import MenuPerformanceTable from '../../components/owner/reports/MenuPerformanceTable';
 import PeakHoursChart from '../../components/owner/reports/PeakHoursChart';
 import CategoryBreakdownCard from '../../components/owner/reports/CategoryBreakdownCard';
 import PaymentMethodsCard from '../../components/owner/reports/PaymentMethodsCard';
+import RevenueChart from '../../components/owner/reports/RevenueChart';  // NEW
 
 // Icons
 import {
@@ -43,6 +50,10 @@ const SalesReport = () => {
   const [activeTab, setActiveTab] = useState("overview");
   const [sortBy, setSortBy] = useState("revenue");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  
+  // NEW: State for Revenue Chart
+  const [chartYear, setChartYear] = useState(new Date().getFullYear());
+  const [chartViewType, setChartViewType] = useState('3m');
 
   // React Query Hooks
   const { 
@@ -64,6 +75,19 @@ const SalesReport = () => {
   } = useRevenueReport(
     dateRange.start_date,
     dateRange.end_date,
+    categoryFilter !== 'all' ? categoryFilter : null,
+    activeTab === 'revenue'
+  );
+
+  // NEW: Revenue Aggregated Hook for Bar Chart
+  const { 
+    data: chartData, 
+    isLoading: chartLoading,
+    error: chartError,
+    refetch: refetchChart 
+  } = useRevenueAggregated(
+    chartYear,
+    chartViewType,
     categoryFilter !== 'all' ? categoryFilter : null,
     activeTab === 'revenue'
   );
@@ -101,7 +125,7 @@ const SalesReport = () => {
     }).format(amount);
   };
 
-  // Handle refresh
+  // Handle refresh - UPDATED
   const handleRefresh = async () => {
     try {
       const loadingToast = toast.loading('Refreshing data...');
@@ -111,7 +135,7 @@ const SalesReport = () => {
           await refetchOverview();
           break;
         case 'revenue':
-          await refetchRevenue();
+          await Promise.all([refetchRevenue(), refetchChart()]);  // UPDATED
           break;
         case 'menu-performance':
           await refetchMenu();
@@ -199,10 +223,10 @@ const SalesReport = () => {
             <div className="flex gap-2">
               <button
                 onClick={handleRefresh}
-                disabled={overviewLoading || revenueLoading || menuLoading || peakLoading}
+                disabled={overviewLoading || revenueLoading || menuLoading || peakLoading || chartLoading}
                 className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <RefreshCw size={18} className={overviewLoading ? 'animate-spin' : ''} />
+                <RefreshCw size={18} className={(overviewLoading || chartLoading) ? 'animate-spin' : ''} />
                 <span>Refresh</span>
               </button>
               <button
@@ -378,6 +402,17 @@ const SalesReport = () => {
                   <option value="3">Pastry</option>
                 </select>
               </div>
+
+              {/* ========== NEW: Revenue Chart ========== */}
+              <RevenueChart
+                data={chartData?.data}
+                loading={chartLoading}
+                year={chartYear}
+                viewType={chartViewType}
+                onYearChange={setChartYear}
+                onViewTypeChange={setChartViewType}
+              />
+              {/* ========================================= */}
 
               {/* Revenue Stats */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

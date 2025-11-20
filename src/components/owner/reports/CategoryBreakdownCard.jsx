@@ -20,7 +20,10 @@ const CategoryBreakdownCard = ({ data, loading = false }) => {
     const colors = {
       'Kitchen': 'bg-red-500',
       'Bar': 'bg-teal-500',
-      'Pastry': 'bg-yellow-500'
+      'Pastry': 'bg-yellow-500',
+      'kitchen': 'bg-red-500',
+      'bar': 'bg-teal-500',
+      'pastry': 'bg-yellow-500'
     };
     return colors[category] || 'bg-gray-500';
   };
@@ -62,27 +65,29 @@ const CategoryBreakdownCard = ({ data, loading = false }) => {
       <h2 className="text-lg font-bold text-gray-900 mb-4">Breakdown Kategori</h2>
       <div className="space-y-4">
         {data.map((cat) => (
-          <div key={cat.category}>
+          <div key={cat.category_id || cat.category_name}>
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <div className={`w-3 h-3 rounded-full ${getCategoryColor(cat.category)}`}></div>
-                <span className="text-sm font-semibold text-gray-900">{cat.category}</span>
+                <div className={`w-3 h-3 rounded-full ${getCategoryColor(cat.category_name)}`}></div>
+                <span className="text-sm font-semibold text-gray-900">
+                  {cat.category_name || cat.category || 'Unknown'}
+                </span>
               </div>
               <span className="text-sm font-bold text-primary-600">
-                {cat.percentage.toFixed(1)}%
+                {cat.percentage?.toFixed(1) || 0}%
               </span>
             </div>
             
             {/* Progress Bar */}
             <div className="w-full bg-gray-200 rounded-full h-2.5 mb-1">
               <div 
-                className={`h-2.5 rounded-full ${getCategoryColor(cat.category)}`}
-                style={{ width: `${cat.percentage}%` }}
+                className={`h-2.5 rounded-full ${getCategoryColor(cat.category_name)}`}
+                style={{ width: `${cat.percentage || 0}%` }}
               ></div>
             </div>
             
             <p className="text-xs text-gray-600">
-              {formatCurrency(cat.revenue)}
+              {formatCurrency(cat.revenue || 0)} • {cat.orders || 0} pesanan
             </p>
           </div>
         ))}
@@ -93,7 +98,7 @@ const CategoryBreakdownCard = ({ data, loading = false }) => {
         <div className="flex items-center justify-between">
           <span className="text-sm font-semibold text-gray-700">Total Revenue</span>
           <span className="text-base font-bold text-gray-900">
-            {formatCurrency(data.reduce((sum, cat) => sum + cat.revenue, 0))}
+            {formatCurrency(data.reduce((sum, cat) => sum + (cat.revenue || 0), 0))}
           </span>
         </div>
       </div>
