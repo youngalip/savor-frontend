@@ -13,8 +13,9 @@ import {
   Menu,
   X
 } from 'lucide-react';
+import { useAuth } from '../../hooks/useAuth';
+import toast from 'react-hot-toast';
 
-// Context for sidebar state
 const OwnerSidebarContext = createContext();
 
 export const useOwnerSidebar = () => {
@@ -45,6 +46,7 @@ export const OwnerSidebarProvider = ({ children }) => {
 
 const OwnerSidebar = () => {
   const navigate = useNavigate();
+  const { logout } = useAuth();
   const { isCollapsed, setIsCollapsed, isMobileOpen, setIsMobileOpen } = useOwnerSidebar();
 
   const menuItems = [
@@ -80,10 +82,16 @@ const OwnerSidebar = () => {
     },
   ];
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     if (window.confirm('Apakah Anda yakin ingin keluar?')) {
-      // TODO: Implement logout logic
-      navigate('/');
+      try {
+        await logout();
+        toast.success('Logout berhasil');
+        navigate('/login');
+      } catch (error) {
+        console.error('Logout error:', error);
+        toast.error('Logout gagal');
+      }
     }
   };
 
@@ -93,7 +101,6 @@ const OwnerSidebar = () => {
 
   return (
     <>
-      {/* Mobile Menu Button */}
       <button
         onClick={() => setIsMobileOpen(true)}
         className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-white rounded-lg shadow-md border border-cream-200"
@@ -101,7 +108,6 @@ const OwnerSidebar = () => {
         <Menu size={24} className="text-gray-900" />
       </button>
 
-      {/* Mobile Overlay */}
       {isMobileOpen && (
         <div
           className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-40"
@@ -109,7 +115,6 @@ const OwnerSidebar = () => {
         />
       )}
 
-      {/* Sidebar */}
       <aside
         className={`
           fixed top-0 left-0 h-full bg-white border-r border-cream-200 
@@ -118,7 +123,6 @@ const OwnerSidebar = () => {
           ${isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         `}
       >
-        {/* Header */}
         <div className="h-16 flex items-center justify-between px-4 border-b border-cream-200">
           {!isCollapsed && (
             <div className="flex items-center gap-2">
@@ -132,7 +136,6 @@ const OwnerSidebar = () => {
             </div>
           )}
           
-          {/* Close button for mobile */}
           <button
             onClick={closeMobileSidebar}
             className="lg:hidden p-1 hover:bg-cream-50 rounded"
@@ -140,7 +143,6 @@ const OwnerSidebar = () => {
             <X size={20} />
           </button>
 
-          {/* Collapse button for desktop */}
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
             className="hidden lg:block p-1 hover:bg-cream-50 rounded transition-colors"
@@ -149,7 +151,6 @@ const OwnerSidebar = () => {
           </button>
         </div>
 
-        {/* Navigation */}
         <nav className="flex-1 overflow-y-auto py-4">
           <ul className="space-y-1 px-3">
             {menuItems.map((item) => {
@@ -176,7 +177,6 @@ const OwnerSidebar = () => {
           </ul>
         </nav>
 
-        {/* Footer - Logout */}
         <div className="border-t border-cream-200 p-3">
           <button
             onClick={handleLogout}

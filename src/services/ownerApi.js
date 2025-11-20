@@ -1,5 +1,5 @@
 // src/services/ownerApi.js
-const API_BASE = 'http://127.0.0.1:8000/api/v1';
+import apiClient from './api';
 
 export const ownerApi = {
   /**
@@ -7,39 +7,30 @@ export const ownerApi = {
    * @param {Object} filters - { role?, status?, search? }
    */
   getUsers: async (filters = {}) => {
-    const params = new URLSearchParams();
-    
-    // Role filter: all, Kasir, Kitchen, Bar, Pastry, Owner
-    if (filters.role && filters.role !== 'all') {
-      params.append('role', filters.role);
+    try {
+      const params = {};
+      
+      // Role filter: all, Kasir, Kitchen, Bar, Pastry, Owner
+      if (filters.role && filters.role !== 'all') {
+        params.role = filters.role;
+      }
+      
+      // Status filter: all, active, inactive
+      if (filters.status && filters.status !== 'all') {
+        params.status = filters.status;
+      }
+      
+      // Search by name or email
+      if (filters.search) {
+        params.search = filters.search;
+      }
+      
+      const { data } = await apiClient.get('/owner/users', { params });
+      return data;
+    } catch (error) {
+      console.error('Failed to fetch users:', error);
+      throw error;
     }
-    
-    // Status filter: all, active, inactive
-    if (filters.status && filters.status !== 'all') {
-      params.append('status', filters.status);
-    }
-    
-    // Search by name or email
-    if (filters.search) {
-      params.append('search', filters.search);
-    }
-    
-    const url = `${API_BASE}/owner/users${params.toString() ? '?' + params.toString() : ''}`;
-    
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-    });
-    
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || `Failed to fetch users: ${response.status}`);
-    }
-    
-    return response.json();
   },
 
   /**
@@ -47,21 +38,13 @@ export const ownerApi = {
    * @param {Object} userData - { name, email, password, role, is_active? }
    */
   createUser: async (userData) => {
-    const response = await fetch(`${API_BASE}/owner/users`, {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(userData),
-    });
-    
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to create user');
+    try {
+      const { data } = await apiClient.post('/owner/users', userData);
+      return data;
+    } catch (error) {
+      console.error('Failed to create user:', error);
+      throw error;
     }
-    
-    return response.json();
   },
 
   /**
@@ -70,21 +53,13 @@ export const ownerApi = {
    * @param {Object} userData - { name?, email?, password?, role?, is_active? }
    */
   updateUser: async (id, userData) => {
-    const response = await fetch(`${API_BASE}/owner/users/${id}`, {
-      method: 'PUT',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(userData),
-    });
-    
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to update user');
+    try {
+      const { data } = await apiClient.put(`/owner/users/${id}`, userData);
+      return data;
+    } catch (error) {
+      console.error('Failed to update user:', error);
+      throw error;
     }
-    
-    return response.json();
   },
 
   /**
@@ -92,20 +67,13 @@ export const ownerApi = {
    * @param {number} id - User ID
    */
   deleteUser: async (id) => {
-    const response = await fetch(`${API_BASE}/owner/users/${id}`, {
-      method: 'DELETE',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-    });
-    
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to delete user');
+    try {
+      const { data } = await apiClient.delete(`/owner/users/${id}`);
+      return data;
+    } catch (error) {
+      console.error('Failed to delete user:', error);
+      throw error;
     }
-    
-    return response.json();
   },
 
   /**
@@ -114,21 +82,15 @@ export const ownerApi = {
    * @param {string} newPassword - New password
    */
   resetPassword: async (id, newPassword) => {
-    const response = await fetch(`${API_BASE}/owner/users/${id}/reset-password`, {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ new_password: newPassword }),
-    });
-    
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to reset password');
+    try {
+      const { data } = await apiClient.post(`/owner/users/${id}/reset-password`, {
+        new_password: newPassword
+      });
+      return data;
+    } catch (error) {
+      console.error('Failed to reset password:', error);
+      throw error;
     }
-    
-    return response.json();
   },
 };
 

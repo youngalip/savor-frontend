@@ -1,141 +1,112 @@
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+// src/services/cashierApi.js
+import apiClient from './api';
 
 const cashierApi = {
-  // Get orders with filters
+  /**
+   * Get orders with filters
+   * @param {Object} filters - { status?, payment_status?, exclude_completed? }
+   */
   getOrders: async (filters = {}) => {
-    const params = new URLSearchParams();
-    
-    // Handle exclude_completed special filter
-    if (filters.exclude_completed) {
-      // Don't send status filter, backend will handle excluding completed
-      delete filters.exclude_completed;
-      params.append('exclude_completed', 'true');
-    }
-    
-    // Add other filters
-    Object.keys(filters).forEach(key => {
-      if (filters[key] !== undefined && filters[key] !== null && filters[key] !== '') {
-        params.append(key, filters[key]);
+    try {
+      const params = {};
+      
+      // Handle exclude_completed special filter
+      if (filters.exclude_completed) {
+        params.exclude_completed = 'true';
       }
-    });
-    
-    const url = `${API_BASE}/cashier/orders${params.toString() ? '?' + params.toString() : ''}`;
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Failed to fetch orders: ${response.status}`); // ✅ FIXED
+      
+      // Add other filters
+      Object.keys(filters).forEach(key => {
+        if (key !== 'exclude_completed' && filters[key] !== undefined && filters[key] !== null && filters[key] !== '') {
+          params[key] = filters[key];
+        }
+      });
+      
+      const { data } = await apiClient.get('/cashier/orders', { params });
+      return data;
+    } catch (error) {
+      console.error('Failed to fetch orders:', error);
+      throw error;
     }
-    
-    return response.json();
   },
 
-  // Get single order detail
+  /**
+   * Get single order detail
+   * @param {number} id - Order ID
+   */
   getOrder: async (id) => {
-    const response = await fetch(`${API_BASE}/cashier/orders/${id}`, { // ✅ FIXED
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Failed to fetch order: ${response.status}`); // ✅ FIXED
+    try {
+      const { data } = await apiClient.get(`/cashier/orders/${id}`);
+      return data;
+    } catch (error) {
+      console.error('Failed to fetch order:', error);
+      throw error;
     }
-    
-    return response.json();
   },
 
-  // Validate cash payment
+  /**
+   * Validate cash payment
+   * @param {number} id - Order ID
+   */
   validatePayment: async (id) => {
-    const response = await fetch(`${API_BASE}/cashier/orders/${id}/validate-payment`, { // ✅ FIXED
-      method: 'PATCH',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-    });
-    
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to validate payment');
+    try {
+      const { data } = await apiClient.patch(`/cashier/orders/${id}/validate-payment`);
+      return data;
+    } catch (error) {
+      console.error('Failed to validate payment:', error);
+      throw error;
     }
-    
-    return response.json();
   },
 
-  // Mark order as completed
+  /**
+   * Mark order as completed
+   * @param {number} id - Order ID
+   */
   markCompleted: async (id) => {
-    console.log('🔄 cashierApi.markCompleted called with id:', id); // ✅ Added logging
-    
-    const response = await fetch(`${API_BASE}/cashier/orders/${id}/complete`, { // ✅ FIXED
-      method: 'PATCH',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-    });
-    
-    console.log('📡 Response status:', response.status); // ✅ Added logging
-    
-    if (!response.ok) {
-      const error = await response.json();
-      console.error('❌ API Error:', error); // ✅ Added logging
-      throw new Error(error.message || 'Failed to complete order');
+    try {
+      console.log('🔄 cashierApi.markCompleted called with id:', id);
+      const { data } = await apiClient.patch(`/cashier/orders/${id}/complete`);
+      console.log('✅ API Success:', data);
+      return data;
+    } catch (error) {
+      console.error('❌ API Error:', error);
+      throw error;
     }
-    
-    const data = await response.json();
-    console.log('✅ API Success:', data); // ✅ Added logging
-    return data;
   },
 
-  // Get statistics
+  /**
+   * Get statistics
+   * @param {Object} filters - Optional filters
+   */
   getStatistics: async (filters = {}) => {
-    const params = new URLSearchParams();
-    Object.keys(filters).forEach(key => {
-      if (filters[key] !== undefined && filters[key] !== null && filters[key] !== '') {
-        params.append(key, filters[key]);
-      }
-    });
-    
-    const url = `${API_BASE}/cashier/statistics${params.toString() ? '?' + params.toString() : ''}`;
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Failed to fetch statistics: ${response.status}`); // ✅ FIXED
+    try {
+      const params = {};
+      Object.keys(filters).forEach(key => {
+        if (filters[key] !== undefined && filters[key] !== null && filters[key] !== '') {
+          params[key] = filters[key];
+        }
+      });
+      
+      const { data } = await apiClient.get('/cashier/statistics', { params });
+      return data;
+    } catch (error) {
+      console.error('Failed to fetch statistics:', error);
+      throw error;
     }
-    
-    return response.json();
   },
 
-  // Reopen completed order (undo complete) - Optional feature
+  /**
+   * Reopen completed order (undo complete)
+   * @param {number} id - Order ID
+   */
   reopenOrder: async (id) => {
-    const response = await fetch(`${API_BASE}/cashier/orders/${id}/reopen`, { // ✅ FIXED
-      method: 'PATCH',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-    });
-    
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to reopen order');
+    try {
+      const { data } = await apiClient.patch(`/cashier/orders/${id}/reopen`);
+      return data;
+    } catch (error) {
+      console.error('Failed to reopen order:', error);
+      throw error;
     }
-    
-    return response.json();
   }
 };
 
