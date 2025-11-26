@@ -76,6 +76,11 @@ const OwnerSidebar = () => {
       path: '/owner/table-management',
     },
     {
+      name: 'Manajemen Menu',
+      icon: UtensilsCrossed,
+      path: '/owner/menu-management',
+    },
+    {
       name: 'Manajemen Akun',
       icon: Users,
       path: '/owner/account-management',

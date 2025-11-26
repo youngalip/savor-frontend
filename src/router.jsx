@@ -1,4 +1,6 @@
 import { createBrowserRouter, Outlet } from "react-router-dom";
+
+// Customer Layout
 import CustomerLayout from "./components/layout/CustomerLayout";
 import MenuPage from "./pages/customer/MenuPage";
 import CartPage from "./pages/customer/CartPage";
@@ -19,17 +21,16 @@ import ReadyOrders from "./pages/staff/cashier/ReadyOrders";
 import CompletedOrders from "./pages/staff/cashier/CompletedOrders";
 import { SidebarProvider } from "./components/cashier/Sidebar";
 
-// Kitchen Stations - Orders
+// Kitchen Stations
 import KitchenStation from "./pages/staff/kitchen/KitchenStation";
 import BarStation from "./pages/staff/kitchen/BarStation";
 import PastryStation from "./pages/staff/kitchen/PastryStation";
 
-// Kitchen Stations - Stock Management
+// Kitchen Stock
 import KitchenStockManagement from "./pages/staff/kitchen/KitchenStockManagement";
 import BarStockManagement from "./pages/staff/kitchen/BarStockManagement";
 import PastryStockManagement from "./pages/staff/kitchen/PastryStockManagement";
 
-// Kitchen Sidebar Provider
 import { SidebarProvider as KitchenSidebarProvider } from "./components/kitchen/Sidebar";
 
 // Owner
@@ -38,39 +39,34 @@ import CashierMonitor from "./pages/owner/CashierMonitor";
 import KitchenMonitor from "./pages/owner/KitchenMonitor";
 import SalesReport from "./pages/owner/SalesReport";
 import TableManagement from "./pages/owner/TableManagement";
+import MenuManagement from "./pages/owner/MenuManagement"; // ADD THIS
 import AccountManagement from "./pages/owner/AccountManagement";
 import { OwnerSidebarProvider } from "./components/owner/OwnerSidebar";
 
-// ==========================
+// ======================
 // Layout Wrappers
-// ==========================
-const CashierLayout = () => {
-  return (
-    <SidebarProvider>
-      <Outlet />
-    </SidebarProvider>
-  );
-};
+// ======================
+const CashierLayout = () => (
+  <SidebarProvider>
+    <Outlet />
+  </SidebarProvider>
+);
 
-const KitchenLayout = () => {
-  return (
-    <KitchenSidebarProvider>
-      <Outlet />
-    </KitchenSidebarProvider>
-  );
-};
+const KitchenLayout = () => (
+  <KitchenSidebarProvider>
+    <Outlet />
+  </KitchenSidebarProvider>
+);
 
-const OwnerLayout = () => {
-  return (
-    <OwnerSidebarProvider>
-      <Outlet />
-    </OwnerSidebarProvider>
-  );
-};
+const OwnerLayout = () => (
+  <OwnerSidebarProvider>
+    <Outlet />
+  </OwnerSidebarProvider>
+);
 
-// ==========================
-// Router Configuration
-// ==========================
+// ======================
+// ROUTER FINAL
+// ======================
 export const router = createBrowserRouter([
   // ==========================
   // 🔥 AUTH ROUTES (Public)
@@ -134,8 +130,10 @@ export const router = createBrowserRouter([
       { index: true, element: <KitchenStation /> },
       { path: "kitchen-station", element: <KitchenStation /> },
       { path: "kitchen-stock", element: <KitchenStockManagement /> },
+
       { path: "bar-station", element: <BarStation /> },
       { path: "bar-stock", element: <BarStockManagement /> },
+
       { path: "pastry-station", element: <PastryStation /> },
       { path: "pastry-stock", element: <PastryStockManagement /> },
     ],
@@ -160,6 +158,7 @@ export const router = createBrowserRouter([
       { path: "kitchen-monitor", element: <KitchenMonitor /> },
       { path: "sales-report", element: <SalesReport /> },
       { path: "table-management", element: <TableManagement /> },
+      { path: "menu-management", element: <MenuManagement /> }, // NEW ROUTE
       { path: "account-management", element: <AccountManagement /> },
     ],
   },
