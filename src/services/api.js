@@ -1,11 +1,13 @@
-// src/services/api.js - Update for subcategory support
-import axios from 'axios'
+// src/services/api.js
+import axios from 'axios';
+import { getDeviceId } from '../utils/deviceId';
+import { authStorage } from '../utils/authStorage';
 
 // Base configuration
-const BASE_URL = 'http://127.0.0.1:8000'
-const API_VERSION = 'v1'
+const BASE_URL = 'http://127.0.0.1:8000';
+const API_VERSION = 'v1';
 
-// Create axios instance
+// Axios instance
 const apiClient = axios.create({
   baseURL: `${BASE_URL}/api/${API_VERSION}`,
   timeout: 10000,
@@ -13,194 +15,253 @@ const apiClient = axios.create({
     'Content-Type': 'application/json',
     'Accept': 'application/json',
   },
-})
+});
 
 // Request interceptor
 apiClient.interceptors.request.use(
   (config) => {
-    // Add session token if available
-    const sessionToken = localStorage.getItem('session_token')
-    if (sessionToken) {
-      config.headers.Authorization = `Bearer ${sessionToken}`
+    // 🔥 PRIORITY 1: JWT TOKEN for staff/owner routes
+    const jwtToken = authStorage.getToken();
+    if (jwtToken) {
+      config.headers.Authorization = `Bearer ${jwtToken}`;
+    } else {
+      // PRIORITY 2: Session token for customer routes (only if no JWT)
+      const sessionToken = localStorage.getItem('session_token');
+      if (sessionToken) {
+        config.headers.Authorization = `Bearer ${sessionToken}`;
+      }
     }
-    
-    console.log(`🚀 API Request: ${config.method.toUpperCase()} ${config.url}`)
-    return config
+
+    // Device ID: selalu sisipkan di semua request
+    const deviceId = getDeviceId();
+    config.headers['X-Device-Id'] = deviceId;
+
+    // Kalau endpoint history by device → pastikan query param ikut
+    const url = config.url || '';
+    if (url.includes('/orders/history/device')) {
+      config.params = { ...(config.params || {}), device_id: deviceId };
+    }
+
+    console.log(
+      `🚀 API Request: ${config.method?.toUpperCase()} ${config.url}`,
+      config.params || config.data || {}
+    );
+    return config;
   },
   (error) => {
-    console.error('❌ Request Error:', error)
-    return Promise.reject(error)
+    console.error('❌ Request Error:', error);
+    return Promise.reject(error);
   }
-)
+);
 
+// Response interceptor
 // Response interceptor
 apiClient.interceptors.response.use(
   (response) => {
-    console.log(`✅ API Response: ${response.status}`, response.data)
-    return response
+    console.log(`✅ API Response: ${response.status}`, response.data);
+    return response;
   },
   (error) => {
-    console.error('❌ Response Error:', error.response?.data || error.message)
+    console.error('❌ Response Error:', error.response?.data || error.message);
     
-    // Handle common errors
+    // 🔥 HANDLE 401 - Unauthorized
     if (error.response?.status === 401) {
-      // Session expired, clear local storage
-      localStorage.removeItem('session_token')
-      localStorage.removeItem('customer_uuid')
-      localStorage.removeItem('table_info')
+      const jwtToken = authStorage.getToken();
       
-      // Redirect to QR scan (in a real app)
-      console.warn('Session expired, please scan QR again')
+      // If user has JWT token but got 401, it means token expired/invalid
+      if (jwtToken) {
+        console.warn('🔐 JWT Token expired or invalid, logging out...');
+        console.warn('🔍 ERROR DETAILS:', error.response?.data);  // 🔥 TAMBAH INI
+        console.warn('🔍 REQUEST URL:', error.config?.url);        // 🔥 TAMBAH INI
+        console.warn('🔍 TOKEN:', jwtToken.substring(0, 50));      // 🔥 TAMBAH INI
+        
+        // 🔥 TEMPORARY: Comment redirect untuk debug
+        // authStorage.clearAuth();
+        // window.location.href = '/login';
+        
+        alert('401 Error detected! Check console for details'); // 🔥 TAMBAH INI
+      } else {
+        // Customer session handling
+        const sessionToken = localStorage.getItem('session_token');
+        if (sessionToken) {
+          localStorage.removeItem('session_token');
+          localStorage.removeItem('customer_uuid');
+          localStorage.removeItem('table_info');
+          localStorage.removeItem('session_expires_at');
+          console.warn('⚠️ Customer session expired, please scan QR again');
+        }
+      }
     }
     
-    return Promise.reject(error)
+    return Promise.reject(error);
   }
-)
+);
 
-// API service functions
+// ==========================================
+// API SERVICE
+// ==========================================
 export const apiService = {
-  // QR & Session Management
-  scanQR: async (qrCode, deviceInfo) => {
-    const response = await apiClient.post('/scan-qr', {
+  // ==========================================
+  // QR & SESSION MANAGEMENT (Customer)
+  // ==========================================
+  scanQR: async (qrCode, deviceInfo = {}) => {
+    const { data } = await apiClient.post('/scan-qr', {
       qr_code: qrCode,
-      device_info: deviceInfo
-    })
-    return response.data
+      device_info: deviceInfo,
+      device_id: getDeviceId(),
+    });
+    return data;
   },
 
   validateSession: async (sessionToken) => {
-    const response = await apiClient.post('/session/validate', {
-      session_token: sessionToken
-    })
-    return response.data
+    const { data } = await apiClient.post('/session/validate', { 
+      session_token: sessionToken 
+    });
+    return data;
   },
 
   getSession: async (token) => {
-    const response = await apiClient.get(`/session/${token}`)
-    return response.data
+    const { data } = await apiClient.get(`/session/${token}`);
+    return data;
   },
 
   extendSession: async (token) => {
-    const response = await apiClient.post(`/session/extend/${token}`)
-    return response.data
+    const { data } = await apiClient.post(`/session/extend/${token}`);
+    return data;
   },
 
-  // Menu Management
+  // ==========================================
+  // MENU & CATEGORIES (Public)
+  // ==========================================
   getCategories: async () => {
-    const response = await apiClient.get('/categories')
-    return response.data
+    const { data } = await apiClient.get('/categories');
+    return data;
   },
 
   getMenus: async (params = {}) => {
-    const response = await apiClient.get('/menus', { params })
-    return response.data
+    const { data } = await apiClient.get('/menus', { params });
+    return data;
   },
 
   getMenu: async (id) => {
-    const response = await apiClient.get(`/menus/${id}`)
-    return response.data
+    const { data } = await apiClient.get(`/menus/${id}`);
+    return data;
   },
 
-  // Stock Management
+  // ==========================================
+  // STOCK CHECK
+  // ==========================================
   checkStock: async (menuId) => {
-    try {
-      // Gunakan endpoint getMenu yang sudah ada
-      const response = await apiClient.get(`/menus/${menuId}`)
-      
-      // Transform response untuk format stock check
-      if (response.data.success && response.data.data) {
-        const item = response.data.data
-        return {
-          success: true,
-          data: {
-            menu_item_id: item.id,
-            name: item.name,
-            stock_quantity: item.stock_quantity || 0,
-            minimum_stock: item.minimum_stock || 0,
-            is_available: item.is_available && item.stock_quantity > 0,
-            is_low_stock: item.stock_quantity <= (item.minimum_stock || 5),
-            stock_status: item.is_available && item.stock_quantity > 0 ? 'available' : 'out_of_stock'
-          }
+    const { data: resp } = await apiClient.get(`/menus/${menuId}`);
+    
+    if (resp.success && resp.data) {
+      const item = resp.data;
+      return {
+        success: true,
+        data: {
+          menu_item_id: item.id,
+          name: item.name,
+          stock_quantity: item.stock_quantity || 0,
+          minimum_stock: item.minimum_stock || 0,
+          is_available: item.is_available && item.stock_quantity > 0,
+          is_low_stock: item.stock_quantity <= (item.minimum_stock || 5),
+          stock_status: item.is_available && item.stock_quantity > 0 
+            ? 'available' 
+            : 'out_of_stock'
         }
-      }
-      
-      throw new Error('Invalid response format')
-    } catch (error) {
-      console.error('Error checking stock:', error)
-      throw error
+      };
     }
+    throw new Error('Invalid response format');
   },
 
-  // Order Management
+  // ==========================================
+  // ORDER MANAGEMENT (Customer)
+  // ==========================================
   createOrder: async (orderData) => {
-    const response = await apiClient.post('/orders', orderData)
-    return response.data
+    const { data } = await apiClient.post('/orders', orderData);
+    return data;
   },
 
   getOrder: async (uuid) => {
-    const response = await apiClient.get(`/orders/${uuid}`)
-    return response.data
+    const { data } = await apiClient.get(`/orders/${uuid}`);
+    return data;
   },
 
   getOrderHistory: async (sessionToken) => {
-    const response = await apiClient.get(`/orders/history/${sessionToken}`)
-    return response.data
+    const { data } = await apiClient.get(`/orders/history/${sessionToken}`);
+    return data;
   },
 
-  // Payment Management
+  getDeviceHistory: async (deviceId) => {
+    const { data } = await apiClient.get('/orders/history/device', {
+      params: { device_id: deviceId || getDeviceId() }
+    });
+    return data;
+  },
+
+  // ==========================================
+  // CASHIER (Staff - Protected)
+  // ==========================================
+  payCashOrder: async (orderUuid) => {
+    const { data } = await apiClient.post(
+      `/staff/cashier/orders/${orderUuid}/pay-cash`
+    );
+    return data;
+  },
+
+  // ==========================================
+  // PAYMENT PROCESSING
+  // ==========================================
   processPayment: async (paymentData) => {
-    const response = await apiClient.post('/payment/process', paymentData)
-    return response.data
+    const { data } = await apiClient.post('/payment/process', paymentData);
+    return data;
   },
 
   finishPayment: async (params = {}) => {
-    const response = await apiClient.get('/payment/finish', { params })
-    return response.data
+    const { data } = await apiClient.get('/payment/finish', { params });
+    return data;
   },
 
-  // Development/Testing endpoints
-  get: async (endpoint, config = {}) => {
-    const response = await apiClient.get(endpoint, config)
-    return response
-  },
+  // ==========================================
+  // GENERIC HELPERS
+  // ==========================================
+  get: async (endpoint, config = {}) => apiClient.get(endpoint, config),
+  post: async (endpoint, data = {}, config = {}) => apiClient.post(endpoint, data, config),
+  patch: async (endpoint, data = {}, config = {}) => apiClient.patch(endpoint, data, config),
+  put: async (endpoint, data = {}, config = {}) => apiClient.put(endpoint, data, config),
+  delete: async (endpoint, config = {}) => apiClient.delete(endpoint, config),
+};
 
-  post: async (endpoint, data = {}, config = {}) => {
-    const response = await apiClient.post(endpoint, data, config)
-    return response
-  }
-}
-
-// Helper functions for local storage
+// ==========================================
+// SESSION STORAGE HELPERS (Customer)
+// ==========================================
 export const sessionStorage = {
   setSession: (sessionData) => {
-    localStorage.setItem('session_token', sessionData.session_token)
-    localStorage.setItem('customer_uuid', sessionData.customer_uuid)
-    localStorage.setItem('table_info', JSON.stringify(sessionData.table))
-    localStorage.setItem('session_expires_at', sessionData.session_expires_at)
+    localStorage.setItem('session_token', sessionData.session_token);
+    localStorage.setItem('customer_uuid', sessionData.customer_uuid);
+    localStorage.setItem('table_info', JSON.stringify(sessionData.table));
+    localStorage.setItem('session_expires_at', sessionData.session_expires_at);
   },
 
-  getSession: () => {
-    return {
-      session_token: localStorage.getItem('session_token'),
-      customer_uuid: localStorage.getItem('customer_uuid'),
-      table_info: JSON.parse(localStorage.getItem('table_info') || 'null'),
-      session_expires_at: localStorage.getItem('session_expires_at')
-    }
-  },
+  getSession: () => ({
+    session_token: localStorage.getItem('session_token'),
+    customer_uuid: localStorage.getItem('customer_uuid'),
+    table_info: JSON.parse(localStorage.getItem('table_info') || 'null'),
+    session_expires_at: localStorage.getItem('session_expires_at')
+  }),
 
   clearSession: () => {
-    localStorage.removeItem('session_token')
-    localStorage.removeItem('customer_uuid')
-    localStorage.removeItem('table_info')
-    localStorage.removeItem('session_expires_at')
+    localStorage.removeItem('session_token');
+    localStorage.removeItem('customer_uuid');
+    localStorage.removeItem('table_info');
+    localStorage.removeItem('session_expires_at');
   },
 
   isSessionValid: () => {
-    const expiresAt = localStorage.getItem('session_expires_at')
-    if (!expiresAt) return false
-    
-    return new Date(expiresAt) > new Date()
+    const expiresAt = localStorage.getItem('session_expires_at');
+    if (!expiresAt) return false;
+    return new Date(expiresAt) > new Date();
   }
-}
+};
 
-export default apiClient
+export default apiClient;

@@ -9,6 +9,11 @@ import CheckoutPage from "./pages/customer/CheckoutPage";
 import PaymentSuccessPage from "./pages/customer/PaymentSuccessPage";
 import OrderHistoryPage from "./pages/customer/OrderHistoryPage";
 
+// Auth
+import LoginPage from "./pages/auth/LoginPage"; // 🔥 IMPORT
+import ProtectedRoute from "./components/auth/ProtectedRoute"; // 🔥 IMPORT
+import RoleGuard from "./components/auth/RoleGuard"; // 🔥 IMPORT
+
 // Cashier
 import AllOrders from "./pages/staff/cashier/AllOrders";
 import ProcessingOrdersCashier from "./pages/staff/cashier/ProcessingOrders";
@@ -63,7 +68,17 @@ const OwnerLayout = () => (
 // ROUTER FINAL
 // ======================
 export const router = createBrowserRouter([
-  // CUSTOMER ROUTES
+  // ==========================
+  // 🔥 AUTH ROUTES (Public)
+  // ==========================
+  {
+    path: "/login",
+    element: <LoginPage />,
+  },
+
+  // ==========================
+  // CUSTOMER ROUTES (Public)
+  // ==========================
   {
     path: "/",
     element: <CustomerLayout />,
@@ -78,10 +93,18 @@ export const router = createBrowserRouter([
     ],
   },
 
-  // CASHIER ROUTES
+  // ==========================
+  // 🔒 CASHIER ROUTES (Protected)
+  // ==========================
   {
     path: "/staff/cashier",
-    element: <CashierLayout />,
+    element: (
+      <ProtectedRoute>
+        <RoleGuard allowedRoles={['kasir']}>
+          <CashierLayout />
+        </RoleGuard>
+      </ProtectedRoute>
+    ),
     children: [
       { index: true, element: <AllOrders /> },
       { path: "all-orders", element: <AllOrders /> },
@@ -91,10 +114,18 @@ export const router = createBrowserRouter([
     ],
   },
 
-  // KITCHEN ROUTES (MENGIKUTI STRUKTUR LAMA)
+  // ==========================
+  // 🔒 KITCHEN ROUTES (Protected)
+  // ==========================
   {
     path: "/staff",
-    element: <KitchenLayout />,
+    element: (
+      <ProtectedRoute>
+        <RoleGuard allowedRoles={['kitchen', 'bar', 'pastry']}>
+          <KitchenLayout />
+        </RoleGuard>
+      </ProtectedRoute>
+    ),
     children: [
       { index: true, element: <KitchenStation /> },
       { path: "kitchen-station", element: <KitchenStation /> },
@@ -108,10 +139,18 @@ export const router = createBrowserRouter([
     ],
   },
 
-  // OWNER ROUTES (DITAMBAH MENU MANAGEMENT)
+  // ==========================
+  // 🔒 OWNER ROUTES (Protected)
+  // ==========================
   {
     path: "/owner",
-    element: <OwnerLayout />,
+    element: (
+      <ProtectedRoute>
+        <RoleGuard allowedRoles={['owner']}>
+          <OwnerLayout />
+        </RoleGuard>
+      </ProtectedRoute>
+    ),
     children: [
       { index: true, element: <OwnerDashboard /> },
       { path: "dashboard", element: <OwnerDashboard /> },

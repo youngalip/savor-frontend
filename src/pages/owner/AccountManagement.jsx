@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import OwnerSidebar, {
   useOwnerSidebar,
 } from "../../components/owner/OwnerSidebar";
@@ -9,120 +9,61 @@ import {
   UserCheck,
   UserX,
   Search,
-  Shield,
   Users as UsersIcon,
 } from "lucide-react";
-
-// Dummy Staff Data
-const initialStaff = [
-  {
-    id: 1,
-    name: "Budi Santoso",
-    email: "budi@restaurant.com",
-    role: "cashier",
-    status: "active",
-    phone: "081234567890",
-    joinDate: "2024-01-15",
-  },
-  {
-    id: 2,
-    name: "Siti Rahayu",
-    email: "siti@restaurant.com",
-    role: "cashier",
-    status: "active",
-    phone: "081234567891",
-    joinDate: "2024-01-10",
-  },
-  {
-    id: 3,
-    name: "Ahmad Yani",
-    email: "ahmad@restaurant.com",
-    role: "kitchen",
-    status: "active",
-    phone: "081234567892",
-    joinDate: "2024-01-12",
-  },
-  {
-    id: 4,
-    name: "Dewi Lestari",
-    email: "dewi@restaurant.com",
-    role: "bar",
-    status: "active",
-    phone: "081234567893",
-    joinDate: "2024-01-08",
-  },
-  {
-    id: 5,
-    name: "Rina Susanti",
-    email: "rina@restaurant.com",
-    role: "pastry",
-    status: "active",
-    phone: "081234567894",
-    joinDate: "2024-01-20",
-  },
-  {
-    id: 6,
-    name: "Joko Widodo",
-    email: "joko@restaurant.com",
-    role: "kitchen",
-    status: "inactive",
-    phone: "081234567895",
-    joinDate: "2023-12-01",
-  },
-];
+import toast, { Toaster } from 'react-hot-toast';
+import ownerApi from '../../services/ownerApi';
 
 const getRoleBadge = (role) => {
   const badges = {
-    owner: {
+    Owner: {
       bg: "bg-purple-50",
       text: "text-purple-700",
       border: "border-purple-200",
       label: "Owner",
     },
-    cashier: {
+    Kasir: {
       bg: "bg-blue-50",
       text: "text-blue-700",
       border: "border-blue-200",
       label: "Kasir",
     },
-    kitchen: {
+    Kitchen: {
       bg: "bg-orange-50",
       text: "text-orange-700",
       border: "border-orange-200",
       label: "Kitchen",
     },
-    bar: {
+    Bar: {
       bg: "bg-cyan-50",
       text: "text-cyan-700",
       border: "border-cyan-200",
       label: "Bar",
     },
-    pastry: {
+    Pastry: {
       bg: "bg-pink-50",
       text: "text-pink-700",
       border: "border-pink-200",
       label: "Pastry",
     },
   };
-  return badges[role] || badges.cashier;
+  return badges[role] || badges.Kasir;
 };
 
-const getStatusBadge = (status) => {
-  const badges = {
-    active: {
-      bg: "bg-green-50",
-      text: "text-green-700",
-      border: "border-green-200",
-      label: "Aktif",
-    },
-    inactive: {
-      bg: "bg-gray-50",
-      text: "text-gray-700",
-      border: "border-gray-200",
-      label: "Tidak Aktif",
-    },
-  };
-  return badges[status] || badges.active;
+const getStatusBadge = (isActive) => {
+  return isActive
+    ? {
+        bg: "bg-green-50",
+        text: "text-green-700",
+        border: "border-green-200",
+        label: "Aktif",
+      }
+    : {
+        bg: "bg-gray-50",
+        text: "text-gray-700",
+        border: "border-gray-200",
+        label: "Tidak Aktif",
+      };
 };
 
 const formatDate = (dateString) => {
@@ -135,55 +76,57 @@ const formatDate = (dateString) => {
 
 const StaffCard = ({ staff, onEdit, onDelete, onToggleStatus }) => {
   const roleBadge = getRoleBadge(staff.role);
-  const statusBadge = getStatusBadge(staff.status);
+  const statusBadge = getStatusBadge(staff.is_active);
 
   return (
-    <div className="card p-5 hover:shadow-md transition-shadow">
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div
-            className={`w-12 h-12 ${roleBadge.bg} rounded-full flex items-center justify-center`}
-          >
-            <span className={`text-lg font-bold ${roleBadge.text}`}>
-              {staff.name
-                .split(" ")
-                .map((n) => n[0])
-                .join("")
-                .slice(0, 2)}
-            </span>
-          </div>
-          <div>
-            <h3 className="text-lg font-bold text-gray-900">{staff.name}</h3>
-            <p className="text-sm text-gray-500">{staff.email}</p>
-          </div>
+    <div className="card p-5 hover:shadow-md transition-shadow relative"> {/* ✅ TAMBAH relative */}
+      
+      {/* ✅ ICON BUTTONS - Fixed Position (Absolute) */}
+      <div className="absolute top-4 right-4 flex gap-2">
+        <button
+          onClick={() => onEdit(staff)}
+          className="p-2 hover:bg-cream-50 rounded-lg transition-colors"
+          title="Edit User"
+        >
+          <Edit2 size={16} className="text-gray-600" />
+        </button>
+        <button
+          onClick={() => onDelete(staff.id)}
+          className="p-2 hover:bg-red-50 rounded-lg transition-colors"
+          title="Hapus User"
+        >
+          <Trash2 size={16} className="text-red-600" />
+        </button>
+      </div>
+
+      {/* Avatar & Info */}
+      <div className="flex items-center gap-3 mb-4 pr-20"> {/* ✅ TAMBAH pr-20 untuk spacing icon */}
+        <div
+          className={`w-12 h-12 ${roleBadge.bg} rounded-full flex items-center justify-center flex-shrink-0`}
+        >
+          <span className={`text-lg font-bold ${roleBadge.text}`}>
+            {staff.name
+              .split(" ")
+              .map((n) => n[0])
+              .join("")
+              .slice(0, 2)}
+          </span>
         </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => onEdit(staff)}
-            className="p-2 hover:bg-cream-50 rounded-lg transition-colors"
-          >
-            <Edit2 size={16} className="text-gray-600" />
-          </button>
-          <button
-            onClick={() => onDelete(staff.id)}
-            className="p-2 hover:bg-red-50 rounded-lg transition-colors"
-          >
-            <Trash2 size={16} className="text-red-600" />
-          </button>
+        <div className="min-w-0 flex-1"> {/* ✅ TAMBAH min-w-0 untuk text truncation */}
+          <h3 className="text-lg font-bold text-gray-900 truncate">{staff.name}</h3>
+          <p className="text-sm text-gray-500 truncate">{staff.email}</p>
         </div>
       </div>
 
+      {/* Join Date */}
       <div className="space-y-2 mb-4">
         <div className="flex items-center gap-2 text-sm text-gray-600">
-          <span>📞</span>
-          <span>{staff.phone}</span>
-        </div>
-        <div className="flex items-center gap-2 text-sm text-gray-600">
           <span>📅</span>
-          <span>Bergabung: {formatDate(staff.joinDate)}</span>
+          <span>Bergabung: {formatDate(staff.created_at)}</span>
         </div>
       </div>
 
+      {/* Badges */}
       <div className="flex flex-wrap gap-2 mb-4">
         <span
           className={`px-3 py-1 rounded-full text-xs font-semibold border ${roleBadge.bg} ${roleBadge.text} ${roleBadge.border}`}
@@ -197,15 +140,16 @@ const StaffCard = ({ staff, onEdit, onDelete, onToggleStatus }) => {
         </span>
       </div>
 
+      {/* Toggle Status Button */}
       <button
-        onClick={() => onToggleStatus(staff.id)}
+        onClick={() => onToggleStatus(staff.id, staff.is_active)}
         className={`w-full py-2 rounded-lg font-medium text-sm transition-colors ${
-          staff.status === "active"
+          staff.is_active
             ? "bg-red-50 text-red-700 hover:bg-red-100"
             : "bg-green-50 text-green-700 hover:bg-green-100"
         }`}
       >
-        {staff.status === "active" ? "Nonaktifkan" : "Aktifkan"}
+        {staff.is_active ? "Nonaktifkan" : "Aktifkan"}
       </button>
     </div>
   );
@@ -213,7 +157,10 @@ const StaffCard = ({ staff, onEdit, onDelete, onToggleStatus }) => {
 
 const AccountManagement = () => {
   const { isCollapsed } = useOwnerSidebar();
-  const [staff, setStaff] = useState(initialStaff);
+  
+  // State
+  const [staff, setStaff] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterRole, setFilterRole] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
@@ -225,42 +172,106 @@ const AccountManagement = () => {
     name: "",
     email: "",
     password: "",
-    phone: "",
     role: "",
-    status: "active",
+    is_active: true,
   });
 
+  // Fetch staff on mount
+  useEffect(() => {
+    fetchStaff();
+  }, []);
+
+  // Fetch staff dari API
+  const fetchStaff = async () => {
+    setLoading(true);
+    try {
+      const response = await ownerApi.getUsers({
+        role: filterRole,
+        status: filterStatus,
+        search: searchQuery,
+      });
+
+      if (response.success) {
+        setStaff(response.data.users || []);
+      } else {
+        toast.error('Gagal memuat data staff');
+      }
+    } catch (error) {
+      console.error('Error fetching staff:', error);
+      toast.error(error.message || 'Gagal memuat data staff');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Refetch saat filter berubah
+  useEffect(() => {
+    const debounceTimer = setTimeout(() => {
+      fetchStaff();
+    }, 300);
+
+    return () => clearTimeout(debounceTimer);
+  }, [filterRole, filterStatus, searchQuery]);
+
+  // Filter staff (client-side untuk search)
   const filteredStaff = staff.filter((s) => {
     const matchSearch =
       s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       s.email.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchRole = filterRole === "all" || s.role === filterRole;
-    const matchStatus = filterStatus === "all" || s.status === filterStatus;
-    return matchSearch && matchRole && matchStatus;
+    return matchSearch;
   });
 
+  // Calculate stats
   const stats = {
     total: staff.length,
-    active: staff.filter((s) => s.status === "active").length,
-    inactive: staff.filter((s) => s.status === "inactive").length,
-    cashier: staff.filter((s) => s.role === "cashier").length,
-    kitchen: staff.filter((s) => s.role === "kitchen").length,
+    active: staff.filter((s) => s.is_active).length,
+    inactive: staff.filter((s) => !s.is_active).length,
+    kasir: staff.filter((s) => s.role === "Kasir").length,
+    kitchen: staff.filter((s) => s.role === "Kitchen").length,
   };
 
-  const handleDelete = (id) => {
-    if (window.confirm("Apakah Anda yakin ingin menghapus akun ini?")) {
-      setStaff(staff.filter((s) => s.id !== id));
+  const handleDelete = async (id) => {
+    const staffMember = staff.find(s => s.id === id);
+    
+    if (!window.confirm(`Apakah Anda yakin ingin menghapus akun ${staffMember.name}?`)) {
+      return;
+    }
+
+    const loadingToast = toast.loading('Menghapus user...');
+    
+    try {
+      const response = await ownerApi.deleteUser(id);
+      
+      if (response.success) {
+        toast.success('User berhasil dihapus!', { id: loadingToast });
+        fetchStaff(); // Refresh list
+      } else {
+        toast.error(response.message || 'Gagal menghapus user', { id: loadingToast });
+      }
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      toast.error(error.message || 'Gagal menghapus user', { id: loadingToast });
     }
   };
 
-  const handleToggleStatus = (id) => {
-    setStaff(
-      staff.map((s) =>
-        s.id === id
-          ? { ...s, status: s.status === "active" ? "inactive" : "active" }
-          : s
-      )
-    );
+  const handleToggleStatus = async (id, currentStatus) => {
+    const loadingToast = toast.loading('Mengubah status...');
+    
+    try {
+      const response = await ownerApi.updateUser(id, {
+        is_active: !currentStatus
+      });
+
+      if (response.success) {
+        toast.success(`Status berhasil diubah!`, { id: loadingToast });
+        fetchStaff(); // Refresh list
+      } else {
+        toast.error(response.message || 'Gagal mengubah status', { id: loadingToast });
+      }
+    } catch (error) {
+      console.error('Error toggling status:', error);
+      toast.error(error.message || 'Gagal mengubah status', { id: loadingToast });
+    }
   };
 
   // Reset form when opening modal
@@ -270,9 +281,8 @@ const AccountManagement = () => {
       name: "",
       email: "",
       password: "",
-      phone: "",
       role: "",
-      status: "active",
+      is_active: true,
     });
     setShowAddModal(true);
   };
@@ -283,10 +293,9 @@ const AccountManagement = () => {
     setFormData({
       name: staffMember.name,
       email: staffMember.email,
-      phone: staffMember.phone,
-      role: staffMember.role,
-      status: staffMember.status,
       password: "", // Don't include password when editing
+      role: staffMember.role,
+      is_active: staffMember.is_active,
     });
     setShowAddModal(true);
   };
@@ -301,50 +310,88 @@ const AccountManagement = () => {
   };
 
   // Handle form submission
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     // Validate required fields
-    if (
-      !formData.name ||
-      !formData.email ||
-      !formData.phone ||
-      !formData.role ||
-      (!editingStaff && !formData.password)
-    ) {
-      alert("Mohon lengkapi semua field yang diperlukan");
+    if (!formData.name || !formData.email || !formData.role) {
+      toast.error('Mohon lengkapi semua field yang diperlukan');
       return;
     }
 
-    // Create new staff member or update existing one
-    if (editingStaff) {
-      setStaff(
-        staff.map((s) => (s.id === editingStaff.id ? { ...s, ...formData } : s))
-      );
-    } else {
-      const newStaff = {
-        id: Math.max(...staff.map((s) => s.id)) + 1,
-        ...formData,
-        joinDate: new Date().toISOString().split("T")[0],
-      };
-      setStaff([...staff, newStaff]);
+    // Password required saat create, optional saat edit
+    if (!editingStaff && !formData.password) {
+      toast.error('Password wajib diisi saat membuat user baru');
+      return;
     }
 
-    // Close modal and reset form
-    setShowAddModal(false);
-    setEditingStaff(null);
-    setFormData({
-      name: "",
-      email: "",
-      password: "",
-      phone: "",
-      role: "",
-      status: "active",
-    });
+    const loadingToast = toast.loading(editingStaff ? 'Mengupdate user...' : 'Membuat user baru...');
+
+    try {
+      // Prepare data - hapus password jika kosong saat edit
+      const submitData = { ...formData };
+      if (editingStaff && !formData.password) {
+        delete submitData.password;
+      }
+
+      let response;
+      if (editingStaff) {
+        response = await ownerApi.updateUser(editingStaff.id, submitData);
+      } else {
+        response = await ownerApi.createUser(submitData);
+      }
+
+      if (response.success) {
+        toast.success(
+          editingStaff ? 'User berhasil diupdate!' : 'User berhasil dibuat!',
+          { id: loadingToast }
+        );
+        
+        setShowAddModal(false);
+        setEditingStaff(null);
+        setFormData({
+          name: "",
+          email: "",
+          password: "",
+          role: "",
+          is_active: true,
+        });
+        
+        fetchStaff(); // Refresh list
+      } else {
+        toast.error(response.message || 'Operasi gagal', { id: loadingToast });
+      }
+    } catch (error) {
+      console.error('Error saving user:', error);
+      toast.error(error.message || 'Gagal menyimpan user', { id: loadingToast });
+    }
   };
 
   return (
     <div className="flex min-h-screen bg-cream-50">
+      <Toaster 
+        position="top-right"
+        toastOptions={{
+          duration: 3000,
+          style: {
+            background: '#fff',
+            color: '#363636',
+          },
+          success: {
+            iconTheme: {
+              primary: '#10b981',
+              secondary: '#fff',
+            },
+          },
+          error: {
+            iconTheme: {
+              primary: '#ef4444',
+              secondary: '#fff',
+            },
+          },
+        }}
+      />
+      
       <OwnerSidebar />
 
       <div
@@ -394,7 +441,7 @@ const AccountManagement = () => {
             <div className="card p-4">
               <p className="text-sm text-gray-600 mb-1">Kasir</p>
               <p className="text-2xl font-bold text-blue-600">
-                {stats.cashier}
+                {stats.kasir}
               </p>
             </div>
             <div className="card p-4">
@@ -433,10 +480,11 @@ const AccountManagement = () => {
                   className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                 >
                   <option value="all">Semua Role</option>
-                  <option value="cashier">Kasir</option>
-                  <option value="kitchen">Kitchen</option>
-                  <option value="bar">Bar</option>
-                  <option value="pastry">Pastry</option>
+                  <option value="Kasir">Kasir</option>
+                  <option value="Kitchen">Kitchen</option>
+                  <option value="Bar">Bar</option>
+                  <option value="Pastry">Pastry</option>
+                  <option value="Owner">Owner</option>
                 </select>
               </div>
 
@@ -455,8 +503,12 @@ const AccountManagement = () => {
             </div>
           </div>
 
-          {/* Staff Grid */}
-          {filteredStaff.length === 0 ? (
+          {/* Loading State */}
+          {loading ? (
+            <div className="flex justify-center items-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500"></div>
+            </div>
+          ) : filteredStaff.length === 0 ? (
             <div className="text-center py-12">
               <div className="inline-flex items-center justify-center w-16 h-16 bg-cream-100 rounded-full mb-4">
                 <UsersIcon size={32} className="text-gray-400" />
@@ -465,7 +517,9 @@ const AccountManagement = () => {
                 Tidak ada staff
               </h3>
               <p className="text-gray-500">
-                Tidak ada staff dengan filter yang dipilih
+                {searchQuery || filterRole !== 'all' || filterStatus !== 'all'
+                  ? 'Tidak ada staff dengan filter yang dipilih'
+                  : 'Tambahkan staff baru untuk memulai'}
               </p>
             </div>
           ) : (
@@ -484,7 +538,7 @@ const AccountManagement = () => {
         </div>
       </div>
 
-      {/* Add/Edit Modal with Form */}
+      {/* Add/Edit Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl max-w-md w-full p-6">
@@ -495,7 +549,7 @@ const AccountManagement = () => {
               {/* Nama */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nama Lengkap
+                  Nama Lengkap <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -511,7 +565,7 @@ const AccountManagement = () => {
               {/* Email */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Email
+                  Email <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="email"
@@ -524,44 +578,31 @@ const AccountManagement = () => {
                 />
               </div>
 
-              {/* Password - Only show for new accounts */}
-              {!editingStaff && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Password
-                  </label>
-                  <input
-                    type="password"
-                    name="password"
-                    required
-                    placeholder="Masukkan password"
-                    value={formData.password}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  />
-                </div>
-              )}
-
-              {/* Phone */}
+              {/* Password */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nomor Telepon
+                  Password {!editingStaff && <span className="text-red-500">*</span>}
                 </label>
                 <input
-                  type="tel"
-                  name="phone"
-                  required
-                  placeholder="Contoh: 081234567890"
-                  value={formData.phone}
+                  type="password"
+                  name="password"
+                  required={!editingStaff}
+                  placeholder={editingStaff ? "Kosongkan jika tidak ingin mengubah" : "Masukkan password"}
+                  value={formData.password}
                   onChange={handleInputChange}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
+                {editingStaff && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Biarkan kosong jika tidak ingin mengubah password
+                  </p>
+                )}
               </div>
 
               {/* Role */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Role
+                  Role <span className="text-red-500">*</span>
                 </label>
                 <select
                   name="role"
@@ -571,27 +612,28 @@ const AccountManagement = () => {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                 >
                   <option value="">Pilih Role</option>
-                  <option value="cashier">Kasir</option>
-                  <option value="kitchen">Kitchen</option>
-                  <option value="bar">Bar</option>
-                  <option value="pastry">Pastry</option>
+                  <option value="Kasir">Kasir</option>
+                  <option value="Kitchen">Kitchen</option>
+                  <option value="Bar">Bar</option>
+                  <option value="Pastry">Pastry</option>
+                  <option value="Owner">Owner</option>
                 </select>
               </div>
 
-              {/* Status - Only show for editing */}
+              {/* Status - Only show when editing */}
               {editingStaff && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Status
                   </label>
                   <select
-                    name="status"
-                    value={formData.status}
-                    onChange={handleInputChange}
+                    name="is_active"
+                    value={formData.is_active}
+                    onChange={(e) => setFormData({ ...formData, is_active: e.target.value === 'true' })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   >
-                    <option value="active">Aktif</option>
-                    <option value="inactive">Tidak Aktif</option>
+                    <option value="true">Aktif</option>
+                    <option value="false">Tidak Aktif</option>
                   </select>
                 </div>
               )}

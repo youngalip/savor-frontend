@@ -8,44 +8,34 @@
  */
 export const getDeviceId = () => {
   const STORAGE_KEY = 'device_id'
-  
-  // Try to get existing device ID
   let deviceId = localStorage.getItem(STORAGE_KEY)
-  
+
   if (!deviceId) {
-    // Generate new UUID
-    deviceId = crypto.randomUUID()
-    
-    // Save to localStorage
+    // Gunakan crypto.randomUUID kalau tersedia, fallback ke generator sederhana
+    deviceId = (crypto && crypto.randomUUID) 
+      ? crypto.randomUUID()
+      : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+          const r = (Math.random() * 16) | 0
+          const v = c === 'x' ? r : (r & 0x3) | 0x8
+          return v.toString(16)
+        })
+
     localStorage.setItem(STORAGE_KEY, deviceId)
-    
-    console.log('📱 New device ID generated:', deviceId)
+    console.log('🆕 New device ID generated:', deviceId)
   } else {
     console.log('📱 Existing device ID found:', deviceId)
   }
-  
+
   return deviceId
 }
 
-/**
- * Clear device ID (for testing or logout)
- */
+/** Clear device ID (for testing or logout) */
 export const clearDeviceId = () => {
   localStorage.removeItem('device_id')
   console.log('🗑️ Device ID cleared')
 }
 
-/**
- * Check if device ID exists
- * 
- * @returns {boolean}
- */
-export const hasDeviceId = () => {
-  return !!localStorage.getItem('device_id')
-}
+/** Check if device ID exists */
+export const hasDeviceId = () => !!localStorage.getItem('device_id')
 
-export default {
-  getDeviceId,
-  clearDeviceId,
-  hasDeviceId
-}
+export default { getDeviceId, clearDeviceId, hasDeviceId }
