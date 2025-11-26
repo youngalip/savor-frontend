@@ -174,28 +174,7 @@ const useCartStore = create(
       },
 
       // ---- Integrasi backend ----
-      validateCart: async () => {
-        const { items } = get()
-        
-        if (items.length === 0) {
-          return { isValid: false, errors: ['Cart is empty'] }
-        }
-
-        set({ isValidatingCart: true })
-        
-        try {
-          const validation = await orderService.validateCart(items)
-          return validation
-        } catch (error) {
-          console.error('Cart validation error:', error)
-          return { 
-            isValid: false, 
-            errors: ['Unable to validate cart'] 
-          }
-        } finally {
-          set({ isValidatingCart: false })
-        }
-      },
+      
 
       /**
        * createOrder — BACKWARD COMPAT
@@ -224,14 +203,7 @@ const useCartStore = create(
         set({ isCreatingOrder: true })
 
         try {
-          // 1) Validasi cart
-          const validation = await get().validateCart()
-          if (!validation.isValid) {
-            return {
-              success: false,
-              error: validation.errors.join(', ')
-            }
-          }
+          
 
           // 2) Tentukan payment_method
           const paymentMethod = paymentMethodOverride 

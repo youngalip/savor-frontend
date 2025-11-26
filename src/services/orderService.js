@@ -37,7 +37,7 @@ const transformOrder = (backendOrder) => {
 
 export const orderService = {
   /**
-   * Create order
+   * ✅ Create order - OPTIMIZED (No frontend validation)
    * @param {Array} cartItems
    * @param {string|null} customerEmail
    * @param {string|null} orderNotes
@@ -56,12 +56,12 @@ export const orderService = {
 
       const items = transformCartToOrderItems(cartItems)
 
-      // Bangun payload: email hanya dikirim bila non-cash & email ada
+      // Bangun payload
       const base = {
         session_token: session.session_token,
         items,
         notes: orderNotes,
-        payment_method: paymentMethod, // 🔑 WAJIB
+        payment_method: paymentMethod,
       }
       const orderData = (paymentMethod === 'non_cash' && customerEmail)
         ? { ...base, email: customerEmail }
@@ -78,18 +78,26 @@ export const orderService = {
             order_uuid: response.data.order_uuid,
             order_number: response.data.order_number,
             total_amount: response.data.total_amount,
-            payment_url: response.data.payment_url, // opsional dari backend
+            payment_url: response.data.payment_url,
             redirect_url: response.data.redirect_url
           }
         }
       }
 
+      // ✅ Backend error (termasuk stock errors)
       throw new Error(response.message || 'Failed to create order')
+      
     } catch (error) {
       console.error('❌ Error creating order:', error)
+      
+      // ✅ Parse stock errors dari backend response
+      const backendData = error?.response?.data?.data
+      const stockErrors = backendData?.stock_errors || []
+      
       return {
         success: false,
-        error: error?.response?.data?.message || error.message
+        error: error?.response?.data?.message || error.message,
+        stockErrors: stockErrors // Pass ke UI untuk display
       }
     }
   },
@@ -116,7 +124,7 @@ export const orderService = {
       return {
         success: false,
         error: error.message,
-        data: { // fallback
+        data: {
           serviceChargeRate: 0.07,
           taxRate: 0.10,
           serviceChargePercentage: '7%',
@@ -140,8 +148,7 @@ export const orderService = {
     }
   },
 
-  // Riwayat order session aktif
-  // Get order history for current session (FIX parser)
+  // ✅ Get order history
   getOrderHistory: async () => {
     try {
       const session = sessionStorage.getSession();
@@ -155,10 +162,7 @@ export const orderService = {
         throw new Error(response.message || 'Failed to get order history');
       }
 
-      // Backend: { success: true, data: { current_session, past_orders, all_orders, total_orders, total_spent, ... } }
       const payload = response.data || {};
-
-      // Prioritaskan all_orders agar Pending & Paid semuanya muncul
       const sourceList = Array.isArray(payload.all_orders) ? payload.all_orders : [];
 
       const transformed = sourceList.map((backendOrder) => ({
@@ -169,7 +173,7 @@ export const orderService = {
         notes: backendOrder.notes,
         paidAt: backendOrder.paid_at,
         items: (backendOrder.items || []).map(item => ({
-          name: item.menu?.name ?? item.menu_name, // handle dua kemungkinan
+          name: item.menu?.name ?? item.menu_name,
           quantity: item.quantity,
           price: parseFloat(item.price),
           subtotal: parseFloat(item.subtotal),
@@ -206,7 +210,6 @@ export const orderService = {
       if (!response.success) {
         throw new Error(response.message || 'Failed to mark cash paid');
       }
-      // kembalikan order terbaru
       return {
         success: true,
         data: {
@@ -232,30 +235,9 @@ export const orderService = {
     return { subtotal, serviceFee, total }
   },
 
-  // Validasi stok item di cart
-  validateCart: async (cartItems) => {
-    try {
-      const validationErrors = []
-      for (const item of cartItems) {
-        const stockResponse = await apiService.checkStock(item.id)
-        if (!stockResponse.success) {
-          validationErrors.push(`${item.name}: Unable to check stock`)
-          continue
-        }
-        if (!stockResponse.data.is_available) {
-          validationErrors.push(`${item.name}: Out of stock`)
-        } else if (stockResponse.data.stock_quantity < item.quantity) {
-          validationErrors.push(
-            `${item.name}: Only ${stockResponse.data.stock_quantity} items available, but ${item.quantity} requested`
-          )
-        }
-      }
-      return { isValid: validationErrors.length === 0, errors: validationErrors }
-    } catch (error) {
-      console.error('❌ Error validating cart:', error)
-      return { isValid: false, errors: ['Unable to validate cart items'] }
-    }
-  }
+  // ✅ REMOVED: validateCart() function
+  // Backend now handles all stock validation during order creation
+  // This eliminates N HTTP calls and prevents race conditions
 }
 
 export default orderService

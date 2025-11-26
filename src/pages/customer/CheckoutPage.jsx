@@ -96,15 +96,6 @@ const CheckoutPage = () => {
     setValidationErrors([]);
 
     try {
-      // 1) Validasi cart
-      const validation = await validateCart();
-      if (!validation.isValid) {
-        setValidationErrors(validation.errors);
-        alert("Validasi keranjang gagal:\n" + validation.errors.join("\n"));
-        setIsProcessing(false);
-        return;
-      }
-
       // 2) Buat order (SIGNATURE BENAR)
       const orderResult = await createOrder(
         isNonCash ? email : null, // email hanya non-tunai
