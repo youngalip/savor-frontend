@@ -87,7 +87,7 @@ const OrderCard = ({ order, onClick }) => {
       <div className="flex justify-between items-start mb-4">
         <div>
           <h3 className="font-bold text-lg text-gray-900">
-            Meja {order.table_number}
+            Meja {order.table_number || order.table?.table_number || '-'}
           </h3>
           <p className="text-sm text-gray-500">#{order.order_number}</p>
         </div>

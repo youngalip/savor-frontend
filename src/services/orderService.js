@@ -78,6 +78,7 @@ export const orderService = {
             order_uuid: response.data.order_uuid,
             order_number: response.data.order_number,
             total_amount: response.data.total_amount,
+            table_number: response.data.table_number ?? null,
             payment_url: response.data.payment_url,
             redirect_url: response.data.redirect_url
           }

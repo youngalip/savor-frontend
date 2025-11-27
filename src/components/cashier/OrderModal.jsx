@@ -126,7 +126,9 @@ const OrderModal = ({
               </div>
               <div>
                 <p className="text-sm text-gray-600">Meja</p>
-                <p className="font-semibold">Meja {order.table_number}</p>
+                <p className="font-semibold">
+                  Meja {order.table_number || order.table?.table_number || '-'}
+                </p>
               </div>
             </div>
           </div>

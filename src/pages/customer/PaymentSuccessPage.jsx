@@ -1,3 +1,5 @@
+/* eslint-disable no-empty */
+/* eslint-disable no-unused-vars */
 // PaymentSuccessPage.jsx - FINAL: handle Tunai & Non-Tunai (Midtrans callback)
 
 import React, { useState, useEffect } from 'react'

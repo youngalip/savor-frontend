@@ -47,7 +47,9 @@ const OrderCard = ({ order, onClick }) => {
       {/* Header */}
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1">
-          <h3 className="font-bold text-gray-900 mb-1">{order.order_number}</h3>
+          <h3 className="font-bold text-lg text-gray-900">
+            Meja {order.table_number || order.table?.table_number || '-'}
+          </h3>
           <div className="flex items-center space-x-2 text-sm text-gray-500">
             <Clock className="w-4 h-4" />
             <span>{formatDate(order.created_at)}</span>

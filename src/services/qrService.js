@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 // src/services/qrService.js
 import { apiService, sessionStorage } from './api'
 

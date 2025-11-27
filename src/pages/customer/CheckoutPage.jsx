@@ -120,6 +120,7 @@ const CheckoutPage = () => {
             paymentMethod: "cash",
             email: null,
             total: getTotal(),
+            tableNumber: orderResult.data.table_number,
           })
         );
 
