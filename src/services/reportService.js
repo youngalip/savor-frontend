@@ -43,13 +43,14 @@ export const reportService = {
   },
 
   /**
-   * Get revenue aggregated with comparison
-   * NEW METHOD - untuk bar chart dengan 3m/6m/1y view
+   * 🔥 UPDATED: Get revenue aggregated with comparison
+   * Removed year parameter, backend now uses NOW() as base
+   * @param {string} viewType - '3m' | '6m' | '1y' | '5y'
+   * @param {number|null} categoryId - Optional category filter
    */
-  getRevenueAggregated: async (year, viewType, categoryId = null) => {
+  getRevenueAggregated: async (viewType, categoryId = null) => {
     try {
       const params = {
-        year,
         view_type: viewType,
       };
       

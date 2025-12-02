@@ -9,7 +9,7 @@ import {
   useRevenueReport, 
   useMenuPerformance, 
   usePeakHours,
-  useRevenueAggregated  // NEW
+  useRevenueAggregated  
 } from '../../hooks/useReports';
 import { reportService } from '../../services/reportService';
 
@@ -20,7 +20,7 @@ import MenuPerformanceTable from '../../components/owner/reports/MenuPerformance
 import PeakHoursChart from '../../components/owner/reports/PeakHoursChart';
 import CategoryBreakdownCard from '../../components/owner/reports/CategoryBreakdownCard';
 import PaymentMethodsCard from '../../components/owner/reports/PaymentMethodsCard';
-import RevenueChart from '../../components/owner/reports/RevenueChart';  // NEW
+import RevenueChart from '../../components/owner/reports/RevenueChart';
 
 // Icons
 import {
@@ -51,9 +51,8 @@ const SalesReport = () => {
   const [sortBy, setSortBy] = useState("revenue");
   const [categoryFilter, setCategoryFilter] = useState("all");
   
-  // NEW: State for Revenue Chart
-  const [chartYear, setChartYear] = useState(new Date().getFullYear());
-  const [chartViewType, setChartViewType] = useState('3m');
+  // 🔥 UPDATED: Remove chartYear, only keep chartViewType
+  const [chartViewType, setChartViewType] = useState('1y');
 
   // React Query Hooks
   const { 
@@ -79,14 +78,13 @@ const SalesReport = () => {
     activeTab === 'revenue'
   );
 
-  // NEW: Revenue Aggregated Hook for Bar Chart
+  // 🔥 UPDATED: Remove year parameter, only pass viewType
   const { 
     data: chartData, 
     isLoading: chartLoading,
     error: chartError,
     refetch: refetchChart 
   } = useRevenueAggregated(
-    chartYear,
     chartViewType,
     categoryFilter !== 'all' ? categoryFilter : null,
     activeTab === 'revenue'
@@ -125,7 +123,7 @@ const SalesReport = () => {
     }).format(amount);
   };
 
-  // Handle refresh - UPDATED
+  // Handle refresh
   const handleRefresh = async () => {
     try {
       const loadingToast = toast.loading('Refreshing data...');
@@ -135,7 +133,7 @@ const SalesReport = () => {
           await refetchOverview();
           break;
         case 'revenue':
-          await Promise.all([refetchRevenue(), refetchChart()]);  // UPDATED
+          await Promise.all([refetchRevenue(), refetchChart()]);
           break;
         case 'menu-performance':
           await refetchMenu();
@@ -333,16 +331,14 @@ const SalesReport = () => {
                   loading={overviewLoading}
                 />
                 <StatCard
-                  title="Total Pesanan"
+                  title="Total Pesanan Selesai"
                   value={overviewData?.data?.summary?.total_orders || 0}
-                  subtitle="Pesanan selesai"
                   icon={ShoppingBag}
                   loading={overviewLoading}
                 />
                 <StatCard
                   title="Total Pelanggan"
                   value={overviewData?.data?.summary?.total_customers || 0}
-                  subtitle="Pelanggan unik"
                   icon={Users}
                   loading={overviewLoading}
                 />
@@ -355,26 +351,21 @@ const SalesReport = () => {
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Daily Breakdown */}
                 <RevenueTable 
                   data={overviewData?.data?.daily_breakdown}
                   loading={overviewLoading}
                 />
-
-                {/* Top Menus */}
                 <MenuPerformanceTable
                   data={overviewData?.data?.top_menus}
                   loading={overviewLoading}
                 />
               </div>
 
-              {/* Category Breakdown & Payment Methods */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <CategoryBreakdownCard
                   data={overviewData?.data?.category_breakdown}
                   loading={overviewLoading}
                 />
-                
                 <PaymentMethodsCard
                   data={overviewData?.data?.payment_methods}
                   loading={overviewLoading}
@@ -403,16 +394,13 @@ const SalesReport = () => {
                 </select>
               </div>
 
-              {/* ========== NEW: Revenue Chart ========== */}
+              {/* 🔥 UPDATED: Remove year prop, only viewType */}
               <RevenueChart
                 data={chartData?.data}
                 loading={chartLoading}
-                year={chartYear}
                 viewType={chartViewType}
-                onYearChange={setChartYear}
                 onViewTypeChange={setChartViewType}
               />
-              {/* ========================================= */}
 
               {/* Revenue Stats */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -441,7 +429,6 @@ const SalesReport = () => {
                 />
               </div>
 
-              {/* Revenue Table */}
               <RevenueTable
                 data={revenueData?.data?.daily_data}
                 loading={revenueLoading}
@@ -452,7 +439,6 @@ const SalesReport = () => {
           {/* Menu Performance Tab */}
           {activeTab === "menu-performance" && (
             <div className="space-y-6">
-              {/* Sort Filter */}
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Urutkan Berdasarkan
@@ -482,7 +468,6 @@ const SalesReport = () => {
                 loading={peakLoading}
               />
 
-              {/* Recommendations */}
               {peakData?.data?.hourly_data && peakData.data.hourly_data.length > 0 && (
                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
                   <div className="flex gap-4">

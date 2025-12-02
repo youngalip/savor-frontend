@@ -9,24 +9,20 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-  Cell
 } from 'recharts';
 import { TrendingUp, TrendingDown, Calendar } from 'lucide-react';
 
 /**
  * Revenue Chart Component
  * Menampilkan bar chart revenue dengan comparison periode sebelumnya
+ * 
+ * Props:
+ * - data: Data dari useRevenueAggregated hook
+ * - loading: Loading state
+ * - viewType: Current view type ('3m' | '6m' | '1y' | '5y')
+ * - onViewTypeChange: Callback untuk mengubah view type
  */
-const RevenueChart = ({ data, loading = false }) => {
-  const [viewType, setViewType] = useState('3m');
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-
-  // Generate available years (last 3 years)
-  const availableYears = useMemo(() => {
-    const currentYear = new Date().getFullYear();
-    return [currentYear, currentYear - 1, currentYear - 2];
-  }, []);
-
+const RevenueChart = ({ data, loading = false, viewType, onViewTypeChange }) => {
   // Format currency for tooltip
   const formatCurrency = (value) => {
     return new Intl.NumberFormat('id-ID', {
@@ -49,31 +45,31 @@ const RevenueChart = ({ data, loading = false }) => {
 
   // Prepare chart data
   const chartData = useMemo(() => {
-    if (!data?.current || !data?.previous) return [];
+    if (!data?.current_data || !data?.previous_data) return [];
 
-    // Map current and previous data by month
+    // Create maps for easy lookup
     const currentMap = new Map(
-      data.current.map(item => [item.month, item])
+      data.current_data.map(item => [item.period, item])
     );
     const previousMap = new Map(
-      data.previous.map(item => [item.month, item])
+      data.previous_data.map(item => [item.period, item])
     );
 
-    // Get all unique months
-    const allMonths = new Set([
-      ...data.current.map(d => d.month),
-      ...data.previous.map(d => d.month)
+    // Get all unique periods
+    const allPeriods = new Set([
+      ...data.current_data.map(d => d.period),
+      ...data.previous_data.map(d => d.period)
     ]);
 
-    return Array.from(allMonths)
-      .sort((a, b) => a - b)
-      .map(month => {
-        const current = currentMap.get(month);
-        const previous = previousMap.get(month);
+    return Array.from(allPeriods)
+      .sort((a, b) => a.localeCompare(b))
+      .map(period => {
+        const current = currentMap.get(period);
+        const previous = previousMap.get(period);
         
         return {
-          month: month,
-          monthName: current?.month_name || previous?.month_name || '',
+          period: period,
+          periodLabel: current?.period_label || previous?.period_label || period,
           currentRevenue: current?.revenue || 0,
           previousRevenue: previous?.revenue || 0,
           currentOrders: current?.orders_count || 0,
@@ -83,7 +79,7 @@ const RevenueChart = ({ data, loading = false }) => {
   }, [data]);
 
   // Custom tooltip
-  const CustomTooltip = ({ active, payload, label }) => {
+  const CustomTooltip = ({ active, payload }) => {
     if (!active || !payload || payload.length === 0) return null;
 
     const data = payload[0].payload;
@@ -93,7 +89,7 @@ const RevenueChart = ({ data, loading = false }) => {
 
     return (
       <div className="bg-white p-4 rounded-lg shadow-lg border border-gray-200">
-        <p className="font-semibold text-gray-900 mb-2">{data.monthName}</p>
+        <p className="font-semibold text-gray-900 mb-2">{data.periodLabel}</p>
         
         <div className="space-y-1 text-sm">
           <div className="flex items-center justify-between gap-4">
@@ -142,13 +138,18 @@ const RevenueChart = ({ data, loading = false }) => {
           <p className="text-sm text-gray-600 mt-1">
             Perbandingan dengan periode sebelumnya
           </p>
+          {data?.current_period && (
+            <p className="text-xs text-gray-500 mt-1">
+              {data.current_period.label} vs {data.previous_period.label}
+            </p>
+          )}
         </div>
 
         <div className="flex gap-2 flex-wrap">
           {/* View Type Filter */}
           <div className="flex bg-gray-100 rounded-lg p-1">
             <button
-              onClick={() => setViewType('3m')}
+              onClick={() => onViewTypeChange('3m')}
               className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
                 viewType === '3m'
                   ? 'bg-white text-primary-600 shadow-sm'
@@ -158,7 +159,7 @@ const RevenueChart = ({ data, loading = false }) => {
               3 Bulan
             </button>
             <button
-              onClick={() => setViewType('6m')}
+              onClick={() => onViewTypeChange('6m')}
               className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
                 viewType === '6m'
                   ? 'bg-white text-primary-600 shadow-sm'
@@ -168,7 +169,7 @@ const RevenueChart = ({ data, loading = false }) => {
               6 Bulan
             </button>
             <button
-              onClick={() => setViewType('1y')}
+              onClick={() => onViewTypeChange('1y')}
               className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
                 viewType === '1y'
                   ? 'bg-white text-primary-600 shadow-sm'
@@ -177,18 +178,17 @@ const RevenueChart = ({ data, loading = false }) => {
             >
               1 Tahun
             </button>
+            <button
+              onClick={() => onViewTypeChange('5y')}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                viewType === '5y'
+                  ? 'bg-white text-primary-600 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              5 Tahun
+            </button>
           </div>
-
-          {/* Year Filter */}
-          <select
-            value={selectedYear}
-            onChange={(e) => setSelectedYear(Number(e.target.value))}
-            className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm font-medium focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-          >
-            {availableYears.map(year => (
-              <option key={year} value={year}>{year}</option>
-            ))}
-          </select>
         </div>
       </div>
 
@@ -224,7 +224,7 @@ const RevenueChart = ({ data, loading = false }) => {
               <p className={`text-xl font-bold ${
                 data.comparison.growth_rate >= 0 ? 'text-green-600' : 'text-red-600'
               }`}>
-                {data.comparison.growth_rate >= 0 ? '+' : ''}{data.comparison.growth_rate}%
+                {data.comparison.growth_rate >= 0 ? '+' : ''}{data.comparison.growth_rate.toFixed(1)}%
               </p>
             </div>
           </div>
@@ -240,7 +240,7 @@ const RevenueChart = ({ data, loading = false }) => {
           >
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
             <XAxis
-              dataKey="monthName"
+              dataKey="periodLabel"
               tick={{ fill: '#6b7280', fontSize: 12 }}
               axisLine={{ stroke: '#e5e7eb' }}
             />
@@ -284,14 +284,14 @@ const RevenueChart = ({ data, loading = false }) => {
           <p className="text-sm text-blue-900 font-semibold mb-2">💡 Insights:</p>
           <ul className="text-sm text-blue-800 space-y-1">
             <li>
-              • Bulan terbaik: {chartData.reduce((max, item) => 
+              • Periode terbaik: {chartData.reduce((max, item) => 
                 item.currentRevenue > max.currentRevenue ? item : max
-              ).monthName} ({formatCurrency(chartData.reduce((max, item) => 
+              ).periodLabel} ({formatCurrency(chartData.reduce((max, item) => 
                 item.currentRevenue > max.currentRevenue ? item : max
               ).currentRevenue)})
             </li>
             <li>
-              • Rata-rata per bulan: {formatCurrency(
+              • Rata-rata per periode: {formatCurrency(
                 chartData.reduce((sum, item) => sum + item.currentRevenue, 0) / chartData.length
               )}
             </li>

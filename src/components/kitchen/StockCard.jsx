@@ -21,7 +21,7 @@ const StockCard = ({ item, onStockChange, onAvailabilityChange }) => {
     },
     safe: {
       badge: 'bg-green-50 text-green-700 border-green-200',
-      label: 'Aman',
+      label: 'Cukup',
       icon: '🟢'
     }
   };

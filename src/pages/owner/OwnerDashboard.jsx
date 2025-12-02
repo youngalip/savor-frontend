@@ -145,9 +145,8 @@ const OwnerDashboard = () => {
                 loading={isLoading}
               />
               <StatCard
-                title="Orders"
+                title="Todays Order"
                 value={isLoading ? '...' : (data?.today?.orders_count || 0).toString()}
-                subtitle="Total orders today"
                 icon={Receipt}
                 color="bg-blue-500"
                 loading={isLoading}
@@ -155,7 +154,6 @@ const OwnerDashboard = () => {
               <StatCard
                 title="Customers"
                 value={isLoading ? '...' : (data?.today?.customers_count || 0).toString()}
-                subtitle="Unique customers"
                 icon={Users}
                 color="bg-orange-500"
                 loading={isLoading}

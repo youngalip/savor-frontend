@@ -35,14 +35,28 @@ export const useRevenueReport = (startDate, endDate, categoryId = null, enabled 
 };
 
 /**
- * Hook for revenue aggregated with comparison (NEW)
- * Untuk bar chart dengan 3m/6m/1y view
+ * 🔥 UPDATED: Hook for revenue aggregated with comparison
+ * Removed year parameter - backend now calculates from NOW()
+ * 
+ * @param {string} viewType - '3m' | '6m' | '1y' | '5y'
+ * @param {number|null} categoryId - Optional category filter
+ * @param {boolean} enabled - Enable/disable query
+ * 
+ * Response structure:
+ * {
+ *   view_type: '3m',
+ *   current_period: { start, end, label },
+ *   previous_period: { start, end, label },
+ *   current_data: [{ period, revenue, orders_count, ... }],
+ *   previous_data: [{ period, revenue, orders_count, ... }],
+ *   comparison: { current_total, previous_total, growth_rate, difference }
+ * }
  */
-export const useRevenueAggregated = (year, viewType, categoryId = null, enabled = true) => {
+export const useRevenueAggregated = (viewType, categoryId = null, enabled = true) => {
   return useQuery({
-    queryKey: ['report', 'revenue-aggregated', year, viewType, categoryId],
-    queryFn: () => reportService.getRevenueAggregated(year, viewType, categoryId),
-    enabled: enabled,
+    queryKey: ['report', 'revenue-aggregated', viewType, categoryId],
+    queryFn: () => reportService.getRevenueAggregated(viewType, categoryId),
+    enabled: enabled && !!viewType,
     staleTime: 5 * 60 * 1000,
     cacheTime: 10 * 60 * 1000,
     retry: 1,
@@ -87,7 +101,7 @@ export const usePeakHours = (startDate, endDate, enabled = true) => {
 export default {
   useOverviewReport,
   useRevenueReport,
-  useRevenueAggregated, // ADD THIS
+  useRevenueAggregated,
   useMenuPerformance,
   usePeakHours
 };
