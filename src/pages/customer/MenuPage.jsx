@@ -24,6 +24,10 @@ const MenuPage = () => {
   // Development state
   const [showDevTools, setShowDevTools] = useState(false)
   
+  // 🔥 NEW: Flying animation state
+  const [flyingItems, setFlyingItems] = useState([])
+  const cartIconRef = useRef(null)
+  
   // Refs for sections
   const sectionRefs = useRef({})
   const isScrollingToSection = useRef(false)
@@ -197,8 +201,44 @@ const MenuPage = () => {
     navigate(`/item/${itemId}`)
   }
 
+  // 🔥 NEW: Flying animation handler
+  const triggerFlyingAnimation = (buttonRect, item) => {
+    // Calculate cart icon position (center-bottom for bottom navigation bar)
+    const cartPosition = {
+      x: window.innerWidth / 2,  // Center of screen
+      y: window.innerHeight - 30  // Bottom navigation bar height
+    }
+    
+    const flyingItem = {
+      id: Date.now(),
+      image: item.image,
+      startX: buttonRect.left + buttonRect.width / 2,
+      startY: buttonRect.top + buttonRect.height / 2,
+      endX: cartPosition.x,
+      endY: cartPosition.y,
+      isAnimating: false
+    }
+    
+    setFlyingItems(prev => [...prev, flyingItem])
+    
+    // Start animation after mount
+    setTimeout(() => {
+      setFlyingItems(prev => 
+        prev.map(fi => fi.id === flyingItem.id ? { ...fi, isAnimating: true } : fi)
+      )
+    }, 10)
+    
+    // Remove flying item after animation completes
+    setTimeout(() => {
+      setFlyingItems(prev => prev.filter(fi => fi.id !== flyingItem.id))
+    }, 800)
+  }
+
   const handleQuickAdd = async (e, item) => {
     e.stopPropagation()
+    
+    // 🔥 CRITICAL: Save button position BEFORE any async operation
+    const buttonRect = e.currentTarget.getBoundingClientRect()
     
     // Check if we have an active session
     if (!sessionToken) {
@@ -206,7 +246,7 @@ const MenuPage = () => {
       return
     }
     
-    // Check stock availability first
+    // 🔥 Check stock availability FIRST before any animation
     const stockResult = await menuService.checkStock(item.id)
     
     if (!stockResult.success || !stockResult.data?.is_available) {
@@ -219,6 +259,9 @@ const MenuPage = () => {
       return
     }
     
+    // 🔥 Only trigger animation if stock check passes
+    triggerFlyingAnimation(buttonRect, item)
+    
     const cartItem = {
       id: item.id,
       name: item.name,
@@ -229,9 +272,8 @@ const MenuPage = () => {
       notes: ''
     }
 
+    // Add to cart
     addItem(cartItem)
-    
-    // Show success feedback
     console.log(`Added ${item.name} to cart`)
   }
 
@@ -270,6 +312,36 @@ const MenuPage = () => {
 
   return (
     <div className="bg-cream-50 min-h-screen">
+      {/* 🔥 Flying Items Animation Layer */}
+      <div className="fixed inset-0 pointer-events-none z-[9999]">
+        {flyingItems.map((flyingItem) => {
+          const deltaX = flyingItem.endX - flyingItem.startX
+          const deltaY = flyingItem.endY - flyingItem.startY
+          
+          return (
+            <div
+              key={flyingItem.id}
+              className="absolute w-16 h-16 rounded-lg overflow-hidden shadow-2xl border-2 border-primary-500"
+              style={{
+                left: flyingItem.startX - 32,
+                top: flyingItem.startY - 32,
+                transform: flyingItem.isAnimating 
+                  ? `translate(${deltaX}px, ${deltaY}px) scale(0.3)` 
+                  : 'translate(0, 0) scale(1)',
+                opacity: flyingItem.isAnimating ? 0 : 1,
+                transition: 'all 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94)'
+              }}
+            >
+              <img 
+                src={flyingItem.image} 
+                alt="Flying item"
+                className="w-full h-full object-cover"
+              />
+            </div>
+          )
+        })}
+      </div>
+
       {/* Hero Section */}
       <div className="px-4 py-8 bg-gradient-to-br from-cream-50 to-cream-100">
         <div className="flex items-start justify-between mb-6">
@@ -396,10 +468,11 @@ const MenuPage = () => {
                             </div>
                           )}
                           
+                          {/* 🔥 Updated: Quick add button with better feedback */}
                           {item.isAvailable && sessionToken && (
                             <button
                               onClick={(e) => handleQuickAdd(e, item)}
-                              className="absolute bottom-2 right-2 w-8 h-8 bg-primary-500 hover:bg-primary-600 text-white rounded-full flex items-center justify-center shadow-lg transition-colors duration-200 opacity-0 group-hover:opacity-100"
+                              className="absolute bottom-2 right-2 w-8 h-8 bg-primary-500 hover:bg-primary-600 text-white rounded-full flex items-center justify-center shadow-lg transition-all duration-200 opacity-0 group-hover:opacity-100 active:scale-90"
                             >
                               <span className="text-lg font-bold">+</span>
                             </button>
@@ -417,7 +490,7 @@ const MenuPage = () => {
                           {item.isAvailable && sessionToken ? (
                             <button
                               onClick={(e) => handleQuickAdd(e, item)}
-                              className="w-full bg-cream-100 hover:bg-cream-200 text-gray-700 font-medium py-2 px-3 rounded-lg text-xs transition-colors duration-200 border border-cream-200"
+                              className="w-full bg-cream-100 hover:bg-cream-200 text-gray-700 font-medium py-2 px-3 rounded-lg text-xs transition-all duration-200 border border-cream-200 active:scale-95"
                             >
                               Add to Cart
                             </button>
@@ -464,6 +537,8 @@ const MenuPage = () => {
           })
         ))}
       </div>
+
+
     </div>
   )
 }

@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import OwnerSidebar, { useOwnerSidebar } from '../../components/owner/OwnerSidebar';
+import { menuService } from '../../services/menuAdminService';
 import { 
   Plus,
   Edit2,
@@ -10,98 +11,10 @@ import {
   Package,
   DollarSign,
   Eye,
-  EyeOff
+  EyeOff,
+  Upload,
+  Loader
 } from 'lucide-react';
-
-// Dummy Categories Data
-const initialCategories = [
-  { id: 1, name: 'Makanan Utama', slug: 'main-course', is_active: true, display_order: 1, active_menus_count: 8 },
-  { id: 2, name: 'Minuman', slug: 'beverages', is_active: true, display_order: 2, active_menus_count: 12 },
-  { id: 3, name: 'Dessert', slug: 'dessert', is_active: true, display_order: 3, active_menus_count: 6 },
-  { id: 4, name: 'Appetizer', slug: 'appetizer', is_active: true, display_order: 4, active_menus_count: 5 }
-];
-
-// Dummy Menus Data
-const initialMenus = [
-  {
-    id: 1,
-    name: 'Nasi Goreng Spesial',
-    category_id: 1,
-    category: { name: 'Makanan Utama' },
-    price: 35000,
-    description: 'Nasi goreng dengan telur, ayam, dan sayuran',
-    image_url: null,
-    is_available: true,
-    stock_quantity: 50,
-    minimum_stock: 10,
-    display_order: 1
-  },
-  {
-    id: 2,
-    name: 'Ayam Bakar',
-    category_id: 1,
-    category: { name: 'Makanan Utama' },
-    price: 45000,
-    description: 'Ayam bakar dengan bumbu kecap manis',
-    image_url: null,
-    is_available: true,
-    stock_quantity: 8,
-    minimum_stock: 10,
-    display_order: 2
-  },
-  {
-    id: 3,
-    name: 'Es Teh Manis',
-    category_id: 2,
-    category: { name: 'Minuman' },
-    price: 8000,
-    description: 'Es teh manis segar',
-    image_url: null,
-    is_available: true,
-    stock_quantity: 100,
-    minimum_stock: 20,
-    display_order: 1
-  },
-  {
-    id: 4,
-    name: 'Kopi Susu',
-    category_id: 2,
-    category: { name: 'Minuman' },
-    price: 18000,
-    description: 'Kopi susu premium',
-    image_url: null,
-    is_available: true,
-    stock_quantity: 45,
-    minimum_stock: 15,
-    display_order: 2
-  },
-  {
-    id: 5,
-    name: 'Chocolate Cake',
-    category_id: 3,
-    category: { name: 'Dessert' },
-    price: 35000,
-    description: 'Kue cokelat lembut dengan frosting',
-    image_url: null,
-    is_available: false,
-    stock_quantity: 0,
-    minimum_stock: 5,
-    display_order: 1
-  },
-  {
-    id: 6,
-    name: 'French Fries',
-    category_id: 4,
-    category: { name: 'Appetizer' },
-    price: 20000,
-    description: 'Kentang goreng crispy',
-    image_url: null,
-    is_available: true,
-    stock_quantity: 30,
-    minimum_stock: 10,
-    display_order: 1
-  }
-];
 
 const formatCurrency = (amount) => {
   return new Intl.NumberFormat('id-ID', {
@@ -122,25 +35,41 @@ const getStockBadge = (menu) => {
 };
 
 // Menu Card Component
-const MenuCard = ({ menu, onEdit, onDelete, onToggleAvailability }) => {
+const MenuCard = ({ menu, onEdit, onDelete, onToggleAvailability, onUploadImage }) => {
   const stockBadge = getStockBadge(menu);
 
   return (
     <div className="card p-5 hover:shadow-md transition-shadow">
-      {/* Image Placeholder */}
-      <div className="w-full h-40 bg-cream-100 rounded-lg mb-4 flex items-center justify-center overflow-hidden">
+      {/* Image */}
+      <div className="relative w-full h-40 bg-cream-100 rounded-lg mb-4 flex items-center justify-center overflow-hidden group">
         {menu.image_url ? (
           <img src={menu.image_url} alt={menu.name} className="w-full h-full object-cover" />
         ) : (
           <Package size={48} className="text-gray-400" />
         )}
+        
+        {/* Upload overlay on hover */}
+        <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+          <button
+            onClick={() => onUploadImage(menu)}
+            className="px-4 py-2 bg-white text-gray-900 rounded-lg flex items-center gap-2 hover:bg-gray-100"
+          >
+            <Upload size={16} />
+            <span className="text-sm font-medium">Upload Gambar</span>
+          </button>
+        </div>
       </div>
 
       {/* Header */}
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1">
           <h3 className="text-lg font-bold text-gray-900 mb-1">{menu.name}</h3>
-          <p className="text-xs text-gray-500">{menu.category.name}</p>
+          <p className="text-xs text-gray-500">{menu.category_name}</p>
+          {menu.subcategory && (
+            <span className="inline-block mt-1 px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded">
+              {menu.subcategory}
+            </span>
+          )}
         </div>
         <div className="flex gap-2">
           <button
@@ -161,7 +90,9 @@ const MenuCard = ({ menu, onEdit, onDelete, onToggleAvailability }) => {
       </div>
 
       {/* Description */}
-      <p className="text-sm text-gray-600 mb-4 line-clamp-2">{menu.description}</p>
+      {menu.description && (
+        <p className="text-sm text-gray-600 mb-4 line-clamp-2">{menu.description}</p>
+      )}
 
       {/* Price */}
       <div className="flex items-center gap-2 mb-3">
@@ -190,7 +121,7 @@ const MenuCard = ({ menu, onEdit, onDelete, onToggleAvailability }) => {
 
       {/* Availability Toggle */}
       <button
-        onClick={() => onToggleAvailability(menu.id)}
+        onClick={() => onToggleAvailability(menu.id, !menu.is_available)}
         className={`w-full py-2 rounded-lg font-medium text-sm transition-colors flex items-center justify-center gap-2 ${
           menu.is_available
             ? 'bg-green-50 text-green-700 hover:bg-green-100'
@@ -204,20 +135,105 @@ const MenuCard = ({ menu, onEdit, onDelete, onToggleAvailability }) => {
   );
 };
 
+// Image Upload Modal
+const ImageUploadModal = ({ menu, onClose, onUpload }) => {
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [preview, setPreview] = useState(null);
+  const [uploading, setUploading] = useState(false);
+
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Ukuran file maksimal 5MB');
+        return;
+      }
+      setSelectedFile(file);
+      setPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!selectedFile) return;
+    
+    setUploading(true);
+    try {
+      await onUpload(menu.id, selectedFile);
+      onClose();
+    } catch (error) {
+      alert('Gagal upload gambar: ' + error.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl max-w-md w-full p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-bold text-gray-900">Upload Gambar Menu</h2>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
+            <X size={20} />
+          </button>
+        </div>
+
+        <p className="text-sm text-gray-600 mb-4">Upload gambar untuk: <strong>{menu?.name}</strong></p>
+
+        <div className="mb-4">
+          <input
+            type="file"
+            accept="image/jpeg,image/jpg,image/png,image/webp"
+            onChange={handleFileSelect}
+            className="w-full"
+          />
+          <p className="text-xs text-gray-500 mt-2">Format: JPG, PNG, WEBP. Maks 5MB</p>
+        </div>
+
+        {preview && (
+          <div className="mb-4">
+            <img src={preview} alt="Preview" className="w-full h-48 object-cover rounded-lg" />
+          </div>
+        )}
+
+        <div className="flex gap-3">
+          <button
+            onClick={onClose}
+            disabled={uploading}
+            className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:opacity-50"
+          >
+            Batal
+          </button>
+          <button
+            onClick={handleUpload}
+            disabled={!selectedFile || uploading}
+            className="flex-1 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            {uploading ? <Loader size={16} className="animate-spin" /> : <Upload size={16} />}
+            <span>{uploading ? 'Uploading...' : 'Upload'}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Menu Form Modal
-const MenuFormModal = ({ menu, categories, onClose, onSave }) => {
+const MenuFormModal = ({ menu, categories, subcategories, onClose, onSave }) => {
   const [formData, setFormData] = useState({
     name: menu?.name || '',
     category_id: menu?.category_id || '',
     price: menu?.price || '',
     description: menu?.description || '',
-    stock_quantity: menu?.stock_quantity || '',
+    stock_quantity: menu?.stock_quantity || 0,
     minimum_stock: menu?.minimum_stock || 10,
+    preparation_time: menu?.preparation_time || 15,
+    subcategory: menu?.subcategory || '',
     is_available: menu?.is_available ?? true,
-    display_order: menu?.display_order || 1
+    display_order: menu?.display_order || 0
   });
+  const [saving, setSaving] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (!formData.name || !formData.category_id || !formData.price) {
@@ -225,7 +241,15 @@ const MenuFormModal = ({ menu, categories, onClose, onSave }) => {
       return;
     }
 
-    onSave(formData);
+    setSaving(true);
+    try {
+      await onSave(formData);
+      onClose();
+    } catch (error) {
+      alert('Gagal menyimpan menu: ' + error.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -235,10 +259,7 @@ const MenuFormModal = ({ menu, categories, onClose, onSave }) => {
           <h2 className="text-2xl font-bold text-gray-900">
             {menu ? 'Edit Menu' : 'Tambah Menu Baru'}
           </h2>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          >
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
             <X size={20} />
           </button>
         </div>
@@ -277,6 +298,23 @@ const MenuFormModal = ({ menu, categories, onClose, onSave }) => {
               </select>
             </div>
 
+            {/* Subcategory */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Subkategori
+              </label>
+              <select
+                value={formData.subcategory}
+                onChange={(e) => setFormData({ ...formData, subcategory: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+              >
+                <option value="">Pilih Subkategori</option>
+                {subcategories.map(sub => (
+                  <option key={sub} value={sub}>{sub}</option>
+                ))}
+              </select>
+            </div>
+
             {/* Price */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -286,24 +324,37 @@ const MenuFormModal = ({ menu, categories, onClose, onSave }) => {
                 type="number"
                 min="0"
                 value={formData.price}
-                onChange={(e) => setFormData({ ...formData, price: parseInt(e.target.value) })}
+                onChange={(e) => setFormData({ ...formData, price: parseInt(e.target.value) || 0 })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                 required
+              />
+            </div>
+
+            {/* Preparation Time */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Waktu Persiapan (menit)
+              </label>
+              <input
+                type="number"
+                min="0"
+                value={formData.preparation_time}
+                onChange={(e) => setFormData({ ...formData, preparation_time: parseInt(e.target.value) || 0 })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
 
             {/* Stock Quantity */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Stok Tersedia <span className="text-red-500">*</span>
+                Stok Tersedia
               </label>
               <input
                 type="number"
                 min="0"
                 value={formData.stock_quantity}
-                onChange={(e) => setFormData({ ...formData, stock_quantity: parseInt(e.target.value) })}
+                onChange={(e) => setFormData({ ...formData, stock_quantity: parseInt(e.target.value) || 0 })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                required
               />
             </div>
 
@@ -316,7 +367,7 @@ const MenuFormModal = ({ menu, categories, onClose, onSave }) => {
                 type="number"
                 min="0"
                 value={formData.minimum_stock}
-                onChange={(e) => setFormData({ ...formData, minimum_stock: parseInt(e.target.value) })}
+                onChange={(e) => setFormData({ ...formData, minimum_stock: parseInt(e.target.value) || 0 })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
@@ -341,9 +392,9 @@ const MenuFormModal = ({ menu, categories, onClose, onSave }) => {
               </label>
               <input
                 type="number"
-                min="1"
+                min="0"
                 value={formData.display_order}
-                onChange={(e) => setFormData({ ...formData, display_order: parseInt(e.target.value) })}
+                onChange={(e) => setFormData({ ...formData, display_order: parseInt(e.target.value) || 0 })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
@@ -367,15 +418,18 @@ const MenuFormModal = ({ menu, categories, onClose, onSave }) => {
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+              disabled={saving}
+              className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:opacity-50"
             >
               Batal
             </button>
             <button
               type="submit"
-              className="flex-1 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors font-medium"
+              disabled={saving}
+              className="flex-1 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50 flex items-center justify-center gap-2"
             >
-              Simpan
+              {saving && <Loader size={16} className="animate-spin" />}
+              <span>{saving ? 'Menyimpan...' : 'Simpan'}</span>
             </button>
           </div>
         </form>
@@ -387,17 +441,59 @@ const MenuFormModal = ({ menu, categories, onClose, onSave }) => {
 // Main Component
 const MenuManagement = () => {
   const { isCollapsed } = useOwnerSidebar();
-  const [menus, setMenus] = useState(initialMenus);
-  const [categories] = useState(initialCategories);
+  const [menus, setMenus] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [subcategories, setSubcategories] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterStock, setFilterStock] = useState('all');
   const [showFormModal, setShowFormModal] = useState(false);
+  const [showImageModal, setShowImageModal] = useState(false);
   const [editingMenu, setEditingMenu] = useState(null);
+  const [uploadingMenu, setUploadingMenu] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0 });
+
+  // Load initial data
+  useEffect(() => {
+    loadData();
+  }, [pagination.page, filterCategory]);
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const [menusRes, categoriesRes, subcategoriesRes] = await Promise.all([
+        menuService.getMenus({ 
+          page: pagination.page, 
+          limit: pagination.limit,
+          category_id: filterCategory !== 'all' ? filterCategory : undefined
+        }),
+        menuService.getCategories(),
+        menuService.getSubcategories()
+      ]);
+
+      if (menusRes.success) {
+        setMenus(menusRes.data.menus || []);
+        setPagination(prev => ({ ...prev, total: menusRes.data.pagination?.total || 0 }));
+      }
+      
+      if (categoriesRes.success) {
+        setCategories(categoriesRes.data || []);
+      }
+      
+      if (subcategoriesRes.success) {
+        setSubcategories(subcategoriesRes.data || []);
+      }
+    } catch (error) {
+      console.error('Failed to load data:', error);
+      alert('Gagal memuat data: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredMenus = menus.filter(menu => {
     const matchSearch = menu.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchCategory = filterCategory === 'all' || menu.category_id === parseInt(filterCategory);
     
     let matchStock = true;
     if (filterStock === 'available') {
@@ -408,7 +504,7 @@ const MenuManagement = () => {
       matchStock = menu.stock_quantity === 0;
     }
 
-    return matchSearch && matchCategory && matchStock;
+    return matchSearch && matchStock;
   });
 
   const stats = {
@@ -423,47 +519,72 @@ const MenuManagement = () => {
     setShowFormModal(true);
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     const menu = menus.find(m => m.id === id);
     if (window.confirm(`Apakah Anda yakin ingin menghapus menu "${menu.name}"?`)) {
-      setMenus(menus.filter(m => m.id !== id));
+      try {
+        await menuService.deleteMenu(id);
+        loadData();
+      } catch (error) {
+        alert('Gagal menghapus menu: ' + error.message);
+      }
     }
   };
 
-  const handleToggleAvailability = (id) => {
-    setMenus(menus.map(m =>
-      m.id === id ? { ...m, is_available: !m.is_available } : m
-    ));
+  const handleToggleAvailability = async (id, isAvailable) => {
+    try {
+      await menuService.updateMenu(id, { is_available: isAvailable });
+      loadData();
+    } catch (error) {
+      alert('Gagal mengubah status: ' + error.message);
+    }
   };
 
-  const handleSaveMenu = (formData) => {
-    if (editingMenu) {
-      setMenus(menus.map(m =>
-        m.id === editingMenu.id
-          ? { ...m, ...formData, category: categories.find(c => c.id === formData.category_id) }
-          : m
-      ));
-    } else {
-      const newMenu = {
-        id: Math.max(...menus.map(m => m.id), 0) + 1,
-        ...formData,
-        category: categories.find(c => c.id === formData.category_id),
-        image_url: null
-      };
-      setMenus([...menus, newMenu]);
+  const handleSaveMenu = async (formData) => {
+    try {
+      if (editingMenu) {
+        await menuService.updateMenu(editingMenu.id, formData);
+      } else {
+        await menuService.createMenu(formData);
+      }
+      loadData();
+    } catch (error) {
+      throw error;
     }
-    setShowFormModal(false);
-    setEditingMenu(null);
   };
+
+  const handleUploadImage = (menu) => {
+    setUploadingMenu(menu);
+    setShowImageModal(true);
+  };
+
+  const handleImageUpload = async (menuId, file) => {
+    try {
+      await menuService.uploadMenuImage(menuId, file);
+      loadData();
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen bg-cream-50">
+        <OwnerSidebar />
+        <div className={`flex-1 transition-all duration-300 ${isCollapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
+          <div className="flex items-center justify-center h-screen">
+            <Loader size={48} className="animate-spin text-primary-500" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen bg-cream-50">
       <OwnerSidebar />
       
-      <div className={`
-        flex-1 transition-all duration-300
-        ${isCollapsed ? 'lg:ml-20' : 'lg:ml-64'}
-      `}>
+      <div className={`flex-1 transition-all duration-300 ${isCollapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
         <div className="p-8 mt-16 lg:mt-0">
           {/* Header */}
           <div className="flex justify-between items-center mb-6">
@@ -506,7 +627,6 @@ const MenuManagement = () => {
           {/* Search & Filters */}
           <div className="card p-4 mb-6">
             <div className="flex flex-col md:flex-row gap-4">
-              {/* Search */}
               <div className="flex-1">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
@@ -520,7 +640,6 @@ const MenuManagement = () => {
                 </div>
               </div>
 
-              {/* Category Filter */}
               <div>
                 <select
                   value={filterCategory}
@@ -534,7 +653,6 @@ const MenuManagement = () => {
                 </select>
               </div>
 
-              {/* Stock Filter */}
               <div>
                 <select
                   value={filterStock}
@@ -568,6 +686,7 @@ const MenuManagement = () => {
                   onEdit={handleEdit}
                   onDelete={handleDelete}
                   onToggleAvailability={handleToggleAvailability}
+                  onUploadImage={handleUploadImage}
                 />
               ))}
             </div>
@@ -575,16 +694,28 @@ const MenuManagement = () => {
         </div>
       </div>
 
-      {/* Form Modal */}
+      {/* Modals */}
       {showFormModal && (
         <MenuFormModal
           menu={editingMenu}
           categories={categories}
+          subcategories={subcategories}
           onClose={() => {
             setShowFormModal(false);
             setEditingMenu(null);
           }}
-          onSave={handleSaveMenu}
+onSave={handleSaveMenu}
+        />
+      )}
+
+      {showImageModal && (
+        <ImageUploadModal
+          menu={uploadingMenu}
+          onClose={() => {
+            setShowImageModal(false);
+            setUploadingMenu(null);
+          }}
+          onUpload={handleImageUpload}
         />
       )}
     </div>
