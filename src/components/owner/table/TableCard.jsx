@@ -18,7 +18,7 @@ const TableCard = ({ table, onEdit, onDelete, onShowQR }) => {
                 ? 'bg-green-100 text-green-700' 
                 : 'bg-red-100 text-red-700'
             }`}>
-              {table.status}
+              {table.status === 'Free' ? 'Tersedia' : 'Terisi'}
             </span>
           </div>
         </div>

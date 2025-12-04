@@ -474,8 +474,8 @@ const DevQRScanner = ({ onQRScanned }) => {
             {tables.slice(0, 6).map((table) => (
               <button
                 key={table.id}
-                onClick={() => table.status === 'Free' && table.qr_value && handleQRScan(table.qr_value)}
-                disabled={table.status === 'Occupied' || loading || !table.qr_value}
+                onClick={() => table.status === 'Tersedia' && table.qr_value && handleQRScan(table.qr_value)}
+                disabled={table.status === 'Terisi' || loading || !table.qr_value}
                 className={`p-3 rounded-lg border-2 text-left transition-all duration-200 ${
                   table.status === 'Free' && table.qr_value
                     ? 'border-cream-200 hover:border-primary-300 hover:bg-primary-50 cursor-pointer'

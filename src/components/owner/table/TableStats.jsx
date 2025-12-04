@@ -4,8 +4,8 @@ import { UtensilsCrossed, CheckCircle, XCircle, QrCode } from 'lucide-react'
 const TableStats = ({ tables }) => {
   const stats = {
     total: tables.length,
-    free: tables.filter(t => t.status === 'Free').length,
-    occupied: tables.filter(t => t.status === 'Occupied').length,
+    free: tables.filter(t => t.status === 'Tersedia').length,
+    occupied: tables.filter(t => t.status === 'Terisi').length,
     withQR: tables.filter(t => t.qr_code).length
   }
 
