@@ -1,4 +1,4 @@
-// src/services/menuService.js
+// src/services/menuAdminService.js
 import apiClient from './api';
 
 /**

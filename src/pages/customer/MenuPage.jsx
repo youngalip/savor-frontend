@@ -24,7 +24,7 @@ const MenuPage = () => {
   // Development state
   const [showDevTools, setShowDevTools] = useState(false)
   
-  // 🔥 NEW: Flying animation state
+  // Flying animation state
   const [flyingItems, setFlyingItems] = useState([])
   const cartIconRef = useRef(null)
   
@@ -201,12 +201,12 @@ const MenuPage = () => {
     navigate(`/item/${itemId}`)
   }
 
-  // 🔥 NEW: Flying animation handler
+  // Flying animation handler
   const triggerFlyingAnimation = (buttonRect, item) => {
     // Calculate cart icon position (center-bottom for bottom navigation bar)
     const cartPosition = {
-      x: window.innerWidth / 2,  // Center of screen
-      y: window.innerHeight - 30  // Bottom navigation bar height
+      x: window.innerWidth / 2,
+      y: window.innerHeight - 30
     }
     
     const flyingItem = {
@@ -237,7 +237,7 @@ const MenuPage = () => {
   const handleQuickAdd = async (e, item) => {
     e.stopPropagation()
     
-    // 🔥 CRITICAL: Save button position BEFORE any async operation
+    // Save button position BEFORE any async operation
     const buttonRect = e.currentTarget.getBoundingClientRect()
     
     // Check if we have an active session
@@ -246,7 +246,7 @@ const MenuPage = () => {
       return
     }
     
-    // 🔥 Check stock availability FIRST before any animation
+    // Check stock availability FIRST before any animation
     const stockResult = await menuService.checkStock(item.id)
     
     if (!stockResult.success || !stockResult.data?.is_available) {
@@ -259,7 +259,7 @@ const MenuPage = () => {
       return
     }
     
-    // 🔥 Only trigger animation if stock check passes
+    // Only trigger animation if stock check passes
     triggerFlyingAnimation(buttonRect, item)
     
     const cartItem = {
@@ -312,7 +312,7 @@ const MenuPage = () => {
 
   return (
     <div className="bg-cream-50 min-h-screen">
-      {/* 🔥 Flying Items Animation Layer */}
+      {/* Flying Items Animation Layer */}
       <div className="fixed inset-0 pointer-events-none z-[9999]">
         {flyingItems.map((flyingItem) => {
           const deltaX = flyingItem.endX - flyingItem.startX
@@ -344,36 +344,32 @@ const MenuPage = () => {
 
       {/* Hero Section */}
       <div className="px-4 py-8 bg-gradient-to-br from-cream-50 to-cream-100">
-        <div className="flex items-start justify-between mb-6">
-          <div className="flex-1">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+        <div className="flex items-stretch justify-between gap-4 mb-6">
+          {/* Left Side - Store Info */}
+          <div className="flex-1 flex flex-col justify-center">
+            <h1 className="text-4xl font-bold mb-2 font-serif- font-extrabold" style={{ color: '#8b1538' }}>
               Savor Bakery
             </h1>
-            <p className="text-gray-600 text-base mb-3">
+            <p className="text-gray-700 text-base font-medium">
               Open today, 08:00-20:00
             </p>
-            {tableInfo && (
-              <div className="inline-block bg-white px-3 py-1.5 rounded-lg shadow-sm border border-cream-200">
-                <span className="text-sm font-medium text-gray-700">
-                  Table {tableInfo.table_number}
-                </span>
-              </div>
-            )}
           </div>
           
-          <div className="w-24 h-24 rounded-xl overflow-hidden ml-4 bg-gradient-to-br from-cream-200 to-cream-300 shadow-sm">
-            <img 
-              src="https://images.unsplash.com/photo-1555507036-ab794f4ade5a?w=200&h=200&fit=crop" 
-              alt="Savor Bakery"
-              className="w-full h-full object-cover"
-            />
-          </div>
+          {/* Right Side - Table Number Box */}
+          {tableInfo && (
+            <div className="flex items-center justify-center px-6 rounded-xl shadow-sm border-2" style={{ backgroundColor: '#8b1538', borderColor: '#8b1538' }}>
+              <div className="text-center">
+                <p className="text-white text-sm font-medium mb-1">Table</p>
+                <p className="text-white text-2xl font-bold">{tableInfo.table_number}</p>
+              </div>
+            </div>
+          )}
         </div>
 
-        <div className="w-full h-52 rounded-xl overflow-hidden bg-gradient-to-r from-cream-200 to-cream-300 mb-6 shadow-sm">
+        <div className="w-full h-48 rounded-xl overflow-hidden bg-gradient-to-r from-orange-100 to-orange-50">
           <img 
-            src="https://images.unsplash.com/photo-1509365390234-33de2d71d5b3?w=800&h=400&fit=crop" 
-            alt="Bakery Interior"
+            src="/images/hero/savor_hero.png"
+            alt="Savor Bakery"
             className="w-full h-full object-cover"
           />
         </div>
@@ -388,12 +384,12 @@ const MenuPage = () => {
       <div className="sticky top-0 z-40 bg-cream-100 border-b border-cream-200 px-4 py-3">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="font-semibold text-gray-900">Savor Bakery</h2>
+            <h2 className="font-semibold text-gray-900 font-medium">Savor Bakery</h2>
             {tableInfo && (
-              <p className="text-xs text-gray-600">Table {tableInfo.table_number}</p>
+              <p className="text-xs text-gray-600 font-medium">Table {tableInfo.table_number}</p>
             )}
           </div>
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-gray-600 font-medium">
             {categories[activeMainCategory]?.label} • {currentSubsections.find(s => s.id === activeSubCategory)?.label}
           </div>
         </div>
@@ -468,7 +464,7 @@ const MenuPage = () => {
                             </div>
                           )}
                           
-                          {/* 🔥 Updated: Quick add button with better feedback */}
+                          {/* Quick add button */}
                           {item.isAvailable && sessionToken && (
                             <button
                               onClick={(e) => handleQuickAdd(e, item)}
@@ -537,8 +533,6 @@ const MenuPage = () => {
           })
         ))}
       </div>
-
-
     </div>
   )
 }

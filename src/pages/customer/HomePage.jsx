@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { ChevronRight } from 'lucide-react'
 import { menuItems, menuCategories, storeInfo } from '../../data/menuData'
 import { formatCurrency } from '../../utils/formatters'
+import heroImage from '../../assets/images/hero/savor_hero.png'
 
 const HomePage = () => {
   const navigate = useNavigate()
@@ -42,20 +43,20 @@ const HomePage = () => {
             </div>
             
             {/* Hero Image */}
-            <div className="w-20 h-20 rounded-xl overflow-hidden ml-4 bg-orange-100">
-              <img 
-                src="https://images.unsplash.com/photo-1555507036-ab794f4ade5a?w=200&h=200&fit=crop" 
-                alt="Savor Bakery"
-                className="w-full h-full object-cover"
-              />
+              <div className="w-20 h-20 rounded-xl overflow-hidden ml-4 bg-orange-100">
+                <img
+                  src="/images/hero/savor_hero.png"
+                  alt="Savor Bakery"
+                  className="w-full h-full object-cover"
+                />
+              </div>
             </div>
-          </div>
 
           {/* Large Hero Image */}
           <div className="w-full h-48 rounded-xl overflow-hidden bg-gradient-to-r from-orange-100 to-orange-50">
             <img 
-              src="https://images.unsplash.com/photo-1509365390234-33de2d71d5b3?w=800&h=400&fit=crop" 
-              alt="Bakery Interior"
+              src="/images/hero/savor_hero.png"
+              alt="Savor Bakery"
               className="w-full h-full object-cover"
             />
           </div>
