@@ -1,5 +1,5 @@
-// src/pages/owner/MenuManagement.jsx
-import { useState, useEffect } from 'react';
+// src/pages/owner/MenuManagement.jsx - PART 1: Components & Modals
+import { useState, useEffect, useRef } from 'react';
 import OwnerSidebar, { useOwnerSidebar } from '../../components/owner/OwnerSidebar';
 import menuService from '../../services/menuAdminService';
 import { 
@@ -14,8 +14,13 @@ import {
   Eye,
   EyeOff,
   Upload,
-  Loader
+  Loader,
+  Image as ImageIcon
 } from 'lucide-react';
+
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
 
 const formatCurrency = (amount) => {
   return new Intl.NumberFormat('id-ID', {
@@ -35,7 +40,30 @@ const getStockBadge = (menu) => {
   }
 };
 
-// Menu Card Component
+// ============================================================================
+// CUSTOM HOOKS
+// ============================================================================
+
+const useDebounce = (value, delay) => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+};
+
+// ============================================================================
+// MENU CARD COMPONENT
+// ============================================================================
+
 const MenuCard = ({ menu, onEdit, onDelete, onToggleAvailability, onUploadImage }) => {
   const stockBadge = getStockBadge(menu);
 
@@ -140,7 +168,10 @@ const MenuCard = ({ menu, onEdit, onDelete, onToggleAvailability, onUploadImage 
   );
 };
 
-// Image Upload Modal
+// ============================================================================
+// IMAGE UPLOAD MODAL (Standalone - for existing menus)
+// ============================================================================
+
 const ImageUploadModal = ({ menu, onClose, onUpload }) => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -222,7 +253,10 @@ const ImageUploadModal = ({ menu, onClose, onUpload }) => {
   );
 };
 
-// Menu Form Modal
+// ============================================================================
+// MENU FORM MODAL (Create/Edit with Image Upload)
+// ============================================================================
+
 const MenuFormModal = ({ menu, categories, subcategories, onClose, onSave }) => {
   const [formData, setFormData] = useState({
     name: menu?.name || '',
@@ -237,6 +271,36 @@ const MenuFormModal = ({ menu, categories, subcategories, onClose, onSave }) => 
     display_order: menu?.display_order || 0
   });
   const [saving, setSaving] = useState(false);
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(menu?.image_url || null);
+  const fileInputRef = useRef(null);
+
+  const handleImageSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Ukuran file maksimal 5MB');
+        return;
+      }
+      
+      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+      if (!validTypes.includes(file.type)) {
+        alert('Format file tidak didukung. Gunakan JPG, PNG, atau WEBP');
+        return;
+      }
+
+      setImageFile(file);
+      setImagePreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -248,7 +312,7 @@ const MenuFormModal = ({ menu, categories, subcategories, onClose, onSave }) => 
 
     setSaving(true);
     try {
-      await onSave(formData);
+      await onSave(formData, imageFile);
       onClose();
     } catch (error) {
       alert('Gagal menyimpan menu: ' + (error.message || error));
@@ -270,6 +334,54 @@ const MenuFormModal = ({ menu, categories, subcategories, onClose, onSave }) => 
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Image Upload Section */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Gambar Menu
+            </label>
+            <div className="flex gap-4">
+              {/* Preview */}
+              <div className="relative w-40 h-40 bg-cream-100 rounded-lg flex items-center justify-center overflow-hidden border-2 border-dashed border-gray-300">
+                {imagePreview ? (
+                  <>
+                    <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={handleRemoveImage}
+                      className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600"
+                    >
+                      <X size={16} />
+                    </button>
+                  </>
+                ) : (
+                  <ImageIcon size={48} className="text-gray-400" />
+                )}
+              </div>
+
+              {/* Upload Button */}
+              <div className="flex-1 flex flex-col justify-center">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/jpg,image/png,image/webp"
+                  onChange={handleImageSelect}
+                  className="hidden"
+                  id="menu-image-upload"
+                />
+                <label
+                  htmlFor="menu-image-upload"
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-cream-100 text-gray-700 rounded-lg hover:bg-cream-200 cursor-pointer transition-colors"
+                >
+                  <Upload size={18} />
+                  <span>Pilih Gambar</span>
+                </label>
+                <p className="text-xs text-gray-500 mt-2">
+                  Format: JPG, PNG, WEBP. Maksimal 5MB
+                </p>
+              </div>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Name */}
             <div className="md:col-span-2">
@@ -376,6 +488,19 @@ const MenuFormModal = ({ menu, categories, subcategories, onClose, onSave }) => 
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
+
+            {/* Description */}
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Deskripsi
+              </label>
+              <textarea
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                rows="3"
+              />
+            </div>
           </div>
 
           {/* Buttons */}
@@ -403,13 +528,19 @@ const MenuFormModal = ({ menu, categories, subcategories, onClose, onSave }) => 
   );
 };
 
-// Main Component
+// ============================================================================
+// MAIN COMPONENT
+// ============================================================================
+
 const MenuManagement = () => {
   const { isCollapsed } = useOwnerSidebar();
+  
+  // State management
   const [menus, setMenus] = useState([]);
   const [categories, setCategories] = useState([]);
   const [subcategories, setSubcategories] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearch = useDebounce(searchQuery, 500); // Debounce 500ms
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterStock, setFilterStock] = useState('all');
   const [showFormModal, setShowFormModal] = useState(false);
@@ -417,10 +548,9 @@ const MenuManagement = () => {
   const [editingMenu, setEditingMenu] = useState(null);
   const [uploadingMenu, setUploadingMenu] = useState(null);
   const [loading, setLoading] = useState(true);
-  // pagination holds page, limit, total (total overall)
+  const [searching, setSearching] = useState(false); // Separate loading for search
   const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0 });
 
-  // statsGlobal holds counts computed from full dataset
   const [statsGlobal, setStatsGlobal] = useState({
     total: 0,
     available: 0,
@@ -428,27 +558,37 @@ const MenuManagement = () => {
     outOfStock: 0
   });
 
-  // reset page when filters or search change (user expects first page)
+  // Reset page when filters or search change
   useEffect(() => {
     setPagination(prev => ({ ...prev, page: 1 }));
-  }, [filterCategory, searchQuery]);
+  }, [filterCategory, debouncedSearch]);
 
   // Load data on page change or filters
   useEffect(() => {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pagination.page, filterCategory, filterStock, searchQuery]);
+  }, [pagination.page, filterCategory, filterStock, debouncedSearch]);
+
+  // ============================================================================
+  // DATA LOADING
+  // ============================================================================
 
   const loadData = async () => {
-    setLoading(true);
+    // Only show full loading on initial load
+    if (pagination.page === 1 && !menus.length) {
+      setLoading(true);
+    } else {
+      setSearching(true);
+    }
+    
     try {
       // 1) Fetch page data
       const menusRes = await menuService.getMenus({ 
         page: pagination.page, 
         limit: pagination.limit,
         category_id: filterCategory !== 'all' ? filterCategory : undefined,
-        search: searchQuery || undefined,
-        is_available: undefined // we use client-side stock filter for visual filtering, backend can also filter if provided
+        search: debouncedSearch || undefined,
+        is_available: undefined
       });
 
       if (menusRes && menusRes.success) {
@@ -457,44 +597,40 @@ const MenuManagement = () => {
         const pageFromResponse = menusRes.data.pagination?.page || pagination.page;
         const limitFromResponse = menusRes.data.pagination?.limit || pagination.limit;
 
-        // update page data and pagination.total
         setMenus(pageMenus);
         setPagination(prev => ({ ...prev, total, page: pageFromResponse, limit: limitFromResponse }));
 
         // 2) Fetch ALL data (only to compute global stats)
-        //    - If total is 0 there's nothing to fetch.
-        //    - If total <= limit, we already have all data in pageMenus.
         if (total === 0) {
           setStatsGlobal({ total: 0, available: 0, lowStock: 0, outOfStock: 0 });
         } else if (total <= limitFromResponse) {
-          // we already have everything
           computeAndSetGlobalStats(pageMenus, total);
         } else {
-          // fetch all items once to compute global stats
           try {
-            // request with large limit = total
-            const allRes = await menuService.getMenus({ page: 1, limit: total, category_id: filterCategory !== 'all' ? filterCategory : undefined, search: searchQuery || undefined });
+            const allRes = await menuService.getMenus({ 
+              page: 1, 
+              limit: total, 
+              category_id: filterCategory !== 'all' ? filterCategory : undefined, 
+              search: debouncedSearch || undefined 
+            });
             if (allRes && allRes.success) {
               const allMenus = allRes.data.menus || [];
               computeAndSetGlobalStats(allMenus, total);
             } else {
-              // fallback: compute from current page (not ideal but avoid crash)
               computeAndSetGlobalStats(pageMenus, total);
             }
           } catch (errAll) {
-            // if fetching all fails, fallback to page-based stats to avoid breaking UI
             console.warn('Failed to fetch all menus for stats, falling back to page-based counts', errAll);
             computeAndSetGlobalStats(pageMenus, total);
           }
         }
       } else {
-        // menusRes failed: show empty
         setMenus([]);
         setPagination(prev => ({ ...prev, total: 0 }));
         setStatsGlobal({ total: 0, available: 0, lowStock: 0, outOfStock: 0 });
       }
 
-      // fetch categories & subcategories (independent)
+      // Fetch categories & subcategories
       const [catsRes, subsRes] = await Promise.all([
         menuService.getCategories(),
         menuService.getSubcategories()
@@ -506,6 +642,7 @@ const MenuManagement = () => {
       alert('Gagal memuat data: ' + (error.message || error));
     } finally {
       setLoading(false);
+      setSearching(false);
     }
   };
 
@@ -521,7 +658,7 @@ const MenuManagement = () => {
     });
   };
 
-  // client-side filtered menus (search + stock filter applied on currently loaded page)
+  // Client-side filtered menus (stock filter applied on currently loaded page)
   const filteredMenus = menus.filter(menu => {
     const matchSearch = menu.name.toLowerCase().includes(searchQuery.toLowerCase());
     
@@ -539,6 +676,10 @@ const MenuManagement = () => {
 
   const totalPages = Math.max(1, Math.ceil((pagination.total || 0) / pagination.limit));
 
+  // ============================================================================
+  // EVENT HANDLERS
+  // ============================================================================
+
   const handleEdit = (menu) => {
     setEditingMenu(menu);
     setShowFormModal(true);
@@ -549,7 +690,6 @@ const MenuManagement = () => {
     if (window.confirm(`Apakah Anda yakin ingin menghapus menu "${menu?.name}"?`)) {
       try {
         await menuService.deleteMenu(id);
-        // reload after delete
         loadData();
       } catch (error) {
         alert('Gagal menghapus menu: ' + (error.message || error));
@@ -566,13 +706,25 @@ const MenuManagement = () => {
     }
   };
 
-  const handleSaveMenu = async (formData) => {
+  const handleSaveMenu = async (formData, imageFile) => {
     try {
+      let menuId;
+      
       if (editingMenu) {
+        // Update existing menu
         await menuService.updateMenu(editingMenu.id, formData);
+        menuId = editingMenu.id;
       } else {
-        await menuService.createMenu(formData);
+        // Create new menu
+        const result = await menuService.createMenu(formData);
+        menuId = result.data.id;
       }
+
+      // Upload image if provided
+      if (imageFile && menuId) {
+        await menuService.uploadMenuImage(menuId, imageFile);
+      }
+
       loadData();
     } catch (error) {
       throw error;
@@ -596,9 +748,12 @@ const MenuManagement = () => {
   const handlePageChange = (page) => {
     if (page < 1 || page > totalPages || page === pagination.page) return;
     setPagination(prev => ({ ...prev, page }));
-    // scroll to top of content area (optional)
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  // ============================================================================
+  // RENDER
+  // ============================================================================
 
   if (loading) {
     return (
@@ -637,7 +792,7 @@ const MenuManagement = () => {
             </button>
           </div>
 
-          {/* Stats (use statsGlobal to reflect whole dataset) */}
+          {/* Stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <div className="card p-4">
               <p className="text-sm text-gray-600 mb-1">Total Menu</p>
@@ -670,6 +825,9 @@ const MenuManagement = () => {
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
+                  {searching && (
+                    <Loader className="absolute right-3 top-1/2 transform -translate-y-1/2 text-primary-500 animate-spin" size={18} />
+                  )}
                 </div>
               </div>
 
@@ -725,30 +883,58 @@ const MenuManagement = () => {
             </div>
           )}
 
-          {/* PAGINATION: placed inside p-8 container so it appears BELOW the grid */}
-          <div className="flex justify-center mt-8">
-            <div className="flex items-center gap-2">
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex justify-center items-center gap-2 mt-8">
+              {/* Previous Button */}
               <button
                 disabled={pagination.page === 1}
                 onClick={() => handlePageChange(pagination.page - 1)}
-                className="px-4 py-2 bg-gray-200 rounded-lg disabled:opacity-50"
+                className="px-4 py-2 bg-white border border-cream-200 text-gray-700 rounded-lg hover:bg-cream-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                Prev
+                Sebelumnya
               </button>
 
-              <div className="px-4 py-2">
-                Halaman {pagination.page} dari {totalPages}
+              {/* Page Numbers */}
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNum;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (pagination.page <= 3) {
+                    pageNum = i + 1;
+                  } else if (pagination.page >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = pagination.page - 2 + i;
+                  }
+
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => handlePageChange(pageNum)}
+                      className={`w-10 h-10 rounded-lg font-medium transition-colors ${
+                        pagination.page === pageNum
+                          ? 'bg-primary-500 text-white'
+                          : 'bg-white border border-cream-200 text-gray-700 hover:bg-cream-50'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
               </div>
 
+              {/* Next Button */}
               <button
                 disabled={pagination.page >= totalPages}
                 onClick={() => handlePageChange(pagination.page + 1)}
-                className="px-4 py-2 bg-gray-200 rounded-lg disabled:opacity-50"
+                className="px-4 py-2 bg-white border border-cream-200 text-gray-700 rounded-lg hover:bg-cream-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                Next
+                Selanjutnya
               </button>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
