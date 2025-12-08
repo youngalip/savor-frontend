@@ -172,7 +172,7 @@ const OwnerDashboard = () => {
           {/* This Month Stats */}
           <div className="mb-6">
             <h2 className="text-lg font-bold text-gray-900 mb-4">This Month</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
               <StatCard
                 title="Monthly Revenue"
                 value={isLoading ? '...' : formatCurrency(data?.this_month?.revenue || 0)}
@@ -188,14 +188,6 @@ const OwnerDashboard = () => {
                 subtitle="Total orders this month"
                 icon={Receipt}
                 color="bg-indigo-500"
-                loading={isLoading}
-              />
-              <StatCard
-                title="Growth Rate"
-                value={isLoading ? '...' : `${data?.this_month?.growth_rate > 0 ? '+' : ''}${data?.this_month?.growth_rate?.toFixed(1) || 0}%`}
-                subtitle="vs last month"
-                icon={data?.this_month?.growth_rate >= 0 ? TrendingUp : TrendingUp}
-                color={data?.this_month?.growth_rate >= 0 ? 'bg-green-500' : 'bg-red-500'}
                 loading={isLoading}
               />
             </div>
