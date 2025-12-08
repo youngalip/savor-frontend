@@ -39,9 +39,9 @@ const MenuCard = ({ menu, onEdit, onDelete, onToggleAvailability, onUploadImage 
   const stockBadge = getStockBadge(menu);
 
   return (
-    <div className="card p-5 hover:shadow-md transition-shadow">
+    <div className="card p-5 hover:shadow-md transition-shadow flex flex-col h-full">
       {/* Image */}
-      <div className="relative w-full h-40 bg-cream-100 rounded-lg mb-4 flex items-center justify-center overflow-hidden group">
+      <div className="relative w-full h-40 bg-cream-100 rounded-lg mb-4 flex items-center justify-center overflow-hidden group flex-shrink-0">
         {menu.image_url ? (
           <img src={menu.image_url} alt={menu.name} className="w-full h-full object-cover" />
         ) : (
@@ -62,8 +62,8 @@ const MenuCard = ({ menu, onEdit, onDelete, onToggleAvailability, onUploadImage 
 
       {/* Header */}
       <div className="flex items-start justify-between mb-3">
-        <div className="flex-1">
-          <h3 className="text-lg font-bold text-gray-900 mb-1">{menu.name}</h3>
+        <div className="flex-1 min-w-0">
+          <h3 className="text-lg font-bold text-gray-900 mb-1 truncate" title={menu.name}>{menu.name}</h3>
           <p className="text-xs text-gray-500">{menu.category_name}</p>
           {menu.subcategory && (
             <span className="inline-block mt-1 px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded">
@@ -71,7 +71,7 @@ const MenuCard = ({ menu, onEdit, onDelete, onToggleAvailability, onUploadImage 
             </span>
           )}
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-shrink-0 ml-2">
           <button
             onClick={() => onEdit(menu)}
             className="p-2 hover:bg-cream-50 rounded-lg transition-colors"
@@ -89,10 +89,12 @@ const MenuCard = ({ menu, onEdit, onDelete, onToggleAvailability, onUploadImage 
         </div>
       </div>
 
-      {/* Description */}
-      {menu.description && (
-        <p className="text-sm text-gray-600 mb-4 line-clamp-2">{menu.description}</p>
-      )}
+      {/* Description - Fixed height */}
+      <div className="mb-4 h-10 flex-shrink-0">
+        {menu.description && (
+          <p className="text-sm text-gray-600 line-clamp-2">{menu.description}</p>
+        )}
+      </div>
 
       {/* Price */}
       <div className="flex items-center gap-2 mb-3">
@@ -101,7 +103,7 @@ const MenuCard = ({ menu, onEdit, onDelete, onToggleAvailability, onUploadImage 
       </div>
 
       {/* Stock Info */}
-      <div className="flex items-center justify-between mb-4 p-3 bg-cream-50 rounded-lg">
+      <div className="flex items-center justify-between mb-3 p-3 bg-cream-50 rounded-lg">
         <div>
           <p className="text-xs text-gray-500 mb-1">Stok Tersedia</p>
           <p className="text-lg font-bold text-gray-900">{menu.stock_quantity}</p>
@@ -111,18 +113,20 @@ const MenuCard = ({ menu, onEdit, onDelete, onToggleAvailability, onUploadImage 
         </span>
       </div>
 
-      {/* Low Stock Warning */}
-      {menu.stock_quantity > 0 && menu.stock_quantity <= menu.minimum_stock && (
-        <div className="flex items-center gap-2 p-2 bg-yellow-50 rounded-lg mb-3">
-          <AlertTriangle size={14} className="text-yellow-600" />
-          <p className="text-xs text-yellow-800">Stok di bawah minimum ({menu.minimum_stock})</p>
-        </div>
-      )}
+      {/* Low Stock Warning - Fixed height */}
+      <div className="mb-3 h-8 flex-shrink-0">
+        {menu.stock_quantity > 0 && menu.stock_quantity <= menu.minimum_stock && (
+          <div className="flex items-center gap-2 p-2 bg-yellow-50 rounded-lg h-full">
+            <AlertTriangle size={14} className="text-yellow-600 flex-shrink-0" />
+            <p className="text-xs text-yellow-800">Stok di bawah minimum ({menu.minimum_stock})</p>
+          </div>
+        )}
+      </div>
 
       {/* Availability Toggle */}
       <button
         onClick={() => onToggleAvailability(menu.id, !menu.is_available)}
-        className={`w-full py-2 rounded-lg font-medium text-sm transition-colors flex items-center justify-center gap-2 ${
+        className={`w-full py-2 rounded-lg font-medium text-sm transition-colors flex items-center justify-center gap-2 mt-auto ${
           menu.is_available
             ? 'bg-green-50 text-green-700 hover:bg-green-100'
             : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
