@@ -1,6 +1,7 @@
+// src/pages/owner/MenuManagement.jsx
 import { useState, useEffect } from 'react';
 import OwnerSidebar, { useOwnerSidebar } from '../../components/owner/OwnerSidebar';
-import { menuService } from '../../services/menuAdminService';
+import menuService from '../../services/menuAdminService';
 import { 
   Plus,
   Edit2,
@@ -165,7 +166,7 @@ const ImageUploadModal = ({ menu, onClose, onUpload }) => {
       await onUpload(menu.id, selectedFile);
       onClose();
     } catch (error) {
-      alert('Gagal upload gambar: ' + error.message);
+      alert('Gagal upload gambar: ' + (error.message || error));
     } finally {
       setUploading(false);
     }
@@ -250,7 +251,7 @@ const MenuFormModal = ({ menu, categories, subcategories, onClose, onSave }) => 
       await onSave(formData);
       onClose();
     } catch (error) {
-      alert('Gagal menyimpan menu: ' + error.message);
+      alert('Gagal menyimpan menu: ' + (error.message || error));
     } finally {
       setSaving(false);
     }
@@ -375,46 +376,6 @@ const MenuFormModal = ({ menu, categories, subcategories, onClose, onSave }) => 
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
-
-            {/* Description */}
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Deskripsi
-              </label>
-              <textarea
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                rows={3}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-              />
-            </div>
-
-            {/* Display Order */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Urutan Tampil
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={formData.display_order}
-                onChange={(e) => setFormData({ ...formData, display_order: parseInt(e.target.value) || 0 })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-              />
-            </div>
-
-            {/* Availability */}
-            <div className="flex items-center">
-              <label className="flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={formData.is_available}
-                  onChange={(e) => setFormData({ ...formData, is_available: e.target.checked })}
-                  className="w-5 h-5 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
-                />
-                <span className="ml-3 text-sm font-medium text-gray-700">Tersedia untuk dijual</span>
-              </label>
-            </div>
           </div>
 
           {/* Buttons */}
@@ -456,46 +417,111 @@ const MenuManagement = () => {
   const [editingMenu, setEditingMenu] = useState(null);
   const [uploadingMenu, setUploadingMenu] = useState(null);
   const [loading, setLoading] = useState(true);
+  // pagination holds page, limit, total (total overall)
   const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0 });
 
-  // Load initial data
+  // statsGlobal holds counts computed from full dataset
+  const [statsGlobal, setStatsGlobal] = useState({
+    total: 0,
+    available: 0,
+    lowStock: 0,
+    outOfStock: 0
+  });
+
+  // reset page when filters or search change (user expects first page)
+  useEffect(() => {
+    setPagination(prev => ({ ...prev, page: 1 }));
+  }, [filterCategory, searchQuery]);
+
+  // Load data on page change or filters
   useEffect(() => {
     loadData();
-  }, [pagination.page, filterCategory]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pagination.page, filterCategory, filterStock, searchQuery]);
 
   const loadData = async () => {
     setLoading(true);
     try {
-      const [menusRes, categoriesRes, subcategoriesRes] = await Promise.all([
-        menuService.getMenus({ 
-          page: pagination.page, 
-          limit: pagination.limit,
-          category_id: filterCategory !== 'all' ? filterCategory : undefined
-        }),
+      // 1) Fetch page data
+      const menusRes = await menuService.getMenus({ 
+        page: pagination.page, 
+        limit: pagination.limit,
+        category_id: filterCategory !== 'all' ? filterCategory : undefined,
+        search: searchQuery || undefined,
+        is_available: undefined // we use client-side stock filter for visual filtering, backend can also filter if provided
+      });
+
+      if (menusRes && menusRes.success) {
+        const pageMenus = menusRes.data.menus || [];
+        const total = menusRes.data.pagination?.total || 0;
+        const pageFromResponse = menusRes.data.pagination?.page || pagination.page;
+        const limitFromResponse = menusRes.data.pagination?.limit || pagination.limit;
+
+        // update page data and pagination.total
+        setMenus(pageMenus);
+        setPagination(prev => ({ ...prev, total, page: pageFromResponse, limit: limitFromResponse }));
+
+        // 2) Fetch ALL data (only to compute global stats)
+        //    - If total is 0 there's nothing to fetch.
+        //    - If total <= limit, we already have all data in pageMenus.
+        if (total === 0) {
+          setStatsGlobal({ total: 0, available: 0, lowStock: 0, outOfStock: 0 });
+        } else if (total <= limitFromResponse) {
+          // we already have everything
+          computeAndSetGlobalStats(pageMenus, total);
+        } else {
+          // fetch all items once to compute global stats
+          try {
+            // request with large limit = total
+            const allRes = await menuService.getMenus({ page: 1, limit: total, category_id: filterCategory !== 'all' ? filterCategory : undefined, search: searchQuery || undefined });
+            if (allRes && allRes.success) {
+              const allMenus = allRes.data.menus || [];
+              computeAndSetGlobalStats(allMenus, total);
+            } else {
+              // fallback: compute from current page (not ideal but avoid crash)
+              computeAndSetGlobalStats(pageMenus, total);
+            }
+          } catch (errAll) {
+            // if fetching all fails, fallback to page-based stats to avoid breaking UI
+            console.warn('Failed to fetch all menus for stats, falling back to page-based counts', errAll);
+            computeAndSetGlobalStats(pageMenus, total);
+          }
+        }
+      } else {
+        // menusRes failed: show empty
+        setMenus([]);
+        setPagination(prev => ({ ...prev, total: 0 }));
+        setStatsGlobal({ total: 0, available: 0, lowStock: 0, outOfStock: 0 });
+      }
+
+      // fetch categories & subcategories (independent)
+      const [catsRes, subsRes] = await Promise.all([
         menuService.getCategories(),
         menuService.getSubcategories()
       ]);
-
-      if (menusRes.success) {
-        setMenus(menusRes.data.menus || []);
-        setPagination(prev => ({ ...prev, total: menusRes.data.pagination?.total || 0 }));
-      }
-      
-      if (categoriesRes.success) {
-        setCategories(categoriesRes.data || []);
-      }
-      
-      if (subcategoriesRes.success) {
-        setSubcategories(subcategoriesRes.data || []);
-      }
+      if (catsRes && catsRes.success) setCategories(catsRes.data || []);
+      if (subsRes && subsRes.success) setSubcategories(subsRes.data || []);
     } catch (error) {
       console.error('Failed to load data:', error);
-      alert('Gagal memuat data: ' + error.message);
+      alert('Gagal memuat data: ' + (error.message || error));
     } finally {
       setLoading(false);
     }
   };
 
+  const computeAndSetGlobalStats = (allMenusArray, totalCount) => {
+    const available = allMenusArray.filter(m => m.is_available && m.stock_quantity > 0).length;
+    const lowStock = allMenusArray.filter(m => m.stock_quantity > 0 && m.stock_quantity <= m.minimum_stock).length;
+    const outOfStock = allMenusArray.filter(m => m.stock_quantity === 0).length;
+    setStatsGlobal({
+      total: totalCount,
+      available,
+      lowStock,
+      outOfStock
+    });
+  };
+
+  // client-side filtered menus (search + stock filter applied on currently loaded page)
   const filteredMenus = menus.filter(menu => {
     const matchSearch = menu.name.toLowerCase().includes(searchQuery.toLowerCase());
     
@@ -511,12 +537,7 @@ const MenuManagement = () => {
     return matchSearch && matchStock;
   });
 
-  const stats = {
-    total: menus.length,
-    available: menus.filter(m => m.is_available && m.stock_quantity > 0).length,
-    lowStock: menus.filter(m => m.stock_quantity > 0 && m.stock_quantity <= m.minimum_stock).length,
-    outOfStock: menus.filter(m => m.stock_quantity === 0).length
-  };
+  const totalPages = Math.max(1, Math.ceil((pagination.total || 0) / pagination.limit));
 
   const handleEdit = (menu) => {
     setEditingMenu(menu);
@@ -525,12 +546,13 @@ const MenuManagement = () => {
 
   const handleDelete = async (id) => {
     const menu = menus.find(m => m.id === id);
-    if (window.confirm(`Apakah Anda yakin ingin menghapus menu "${menu.name}"?`)) {
+    if (window.confirm(`Apakah Anda yakin ingin menghapus menu "${menu?.name}"?`)) {
       try {
         await menuService.deleteMenu(id);
+        // reload after delete
         loadData();
       } catch (error) {
-        alert('Gagal menghapus menu: ' + error.message);
+        alert('Gagal menghapus menu: ' + (error.message || error));
       }
     }
   };
@@ -540,7 +562,7 @@ const MenuManagement = () => {
       await menuService.updateMenu(id, { is_available: isAvailable });
       loadData();
     } catch (error) {
-      alert('Gagal mengubah status: ' + error.message);
+      alert('Gagal mengubah status: ' + (error.message || error));
     }
   };
 
@@ -569,6 +591,13 @@ const MenuManagement = () => {
     } catch (error) {
       throw error;
     }
+  };
+
+  const handlePageChange = (page) => {
+    if (page < 1 || page > totalPages || page === pagination.page) return;
+    setPagination(prev => ({ ...prev, page }));
+    // scroll to top of content area (optional)
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   if (loading) {
@@ -608,23 +637,23 @@ const MenuManagement = () => {
             </button>
           </div>
 
-          {/* Stats */}
+          {/* Stats (use statsGlobal to reflect whole dataset) */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <div className="card p-4">
               <p className="text-sm text-gray-600 mb-1">Total Menu</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
+              <p className="text-2xl font-bold text-gray-900">{statsGlobal.total}</p>
             </div>
             <div className="card p-4">
               <p className="text-sm text-gray-600 mb-1">Tersedia</p>
-              <p className="text-2xl font-bold text-green-600">{stats.available}</p>
+              <p className="text-2xl font-bold text-green-600">{statsGlobal.available}</p>
             </div>
             <div className="card p-4">
               <p className="text-sm text-gray-600 mb-1">Stok Rendah</p>
-              <p className="text-2xl font-bold text-yellow-600">{stats.lowStock}</p>
+              <p className="text-2xl font-bold text-yellow-600">{statsGlobal.lowStock}</p>
             </div>
             <div className="card p-4">
               <p className="text-sm text-gray-600 mb-1">Habis</p>
-              <p className="text-2xl font-bold text-red-600">{stats.outOfStock}</p>
+              <p className="text-2xl font-bold text-red-600">{statsGlobal.outOfStock}</p>
             </div>
           </div>
 
@@ -695,6 +724,31 @@ const MenuManagement = () => {
               ))}
             </div>
           )}
+
+          {/* PAGINATION: placed inside p-8 container so it appears BELOW the grid */}
+          <div className="flex justify-center mt-8">
+            <div className="flex items-center gap-2">
+              <button
+                disabled={pagination.page === 1}
+                onClick={() => handlePageChange(pagination.page - 1)}
+                className="px-4 py-2 bg-gray-200 rounded-lg disabled:opacity-50"
+              >
+                Prev
+              </button>
+
+              <div className="px-4 py-2">
+                Halaman {pagination.page} dari {totalPages}
+              </div>
+
+              <button
+                disabled={pagination.page >= totalPages}
+                onClick={() => handlePageChange(pagination.page + 1)}
+                className="px-4 py-2 bg-gray-200 rounded-lg disabled:opacity-50"
+              >
+                Next
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -708,7 +762,7 @@ const MenuManagement = () => {
             setShowFormModal(false);
             setEditingMenu(null);
           }}
-onSave={handleSaveMenu}
+          onSave={handleSaveMenu}
         />
       )}
 
