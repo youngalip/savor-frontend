@@ -51,13 +51,14 @@ const Sidebar = ({ stationType = "kitchen" }) => {
   ];
 
   const handleLogout = async () => {
-    if (!window.confirm("Yakin ingin keluar?")) return;
+    toast.loading("Sedang logout...", { id: "logout" });
+
     try {
       await logout();
-      toast.success("Logout berhasil");
+      toast.success("Logout berhasil", { id: "logout" });
       navigate("/login");
     } catch {
-      toast.error("Logout gagal");
+      toast.error("Logout gagal", { id: "logout" });
     }
   };
 
