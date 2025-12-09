@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { X, Clock, CheckCircle, AlertCircle, RefreshCw, Wifi, WifiOff } from 'lucide-react';
 import Sidebar, { useSidebar, SidebarProvider } from '../../../components/kitchen/Sidebar';
@@ -11,9 +11,55 @@ const formatTime = (date) => new Date(date).toLocaleTimeString('id-ID', { hour: 
 const formatDate = (date) =>
   new Date(date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
 
+// --- COMPONENT: Toggle Switch dengan Animasi Instan ---
+// ✅ SOLUSI UX: Menggunakan local state agar animasi jalan duluan sebelum data server update
+const ToggleItem = ({ item, onToggle, isUpdating }) => {
+  const [localStatus, setLocalStatus] = useState(item.status);
+
+  // Sync state lokal jika props berubah (misal dari auto-refresh)
+  useEffect(() => {
+    setLocalStatus(item.status);
+  }, [item.status]);
+
+  const handleClick = () => {
+    if (isUpdating) return;
+
+    // 1. Tentukan status baru
+    const newStatus = localStatus === 'pending' ? 'done' : 'pending';
+    
+    // 2. Update visual LANGSUNG (Instant Feedback)
+    setLocalStatus(newStatus);
+    
+    // 3. Kirim data ke parent/backend
+    onToggle(item.id, localStatus);
+  };
+
+  const isDone = localStatus === 'done';
+
+  return (
+    <button
+      onClick={handleClick}
+      disabled={isUpdating}
+      className={`
+        relative inline-flex h-8 w-16 items-center rounded-full transition-colors duration-300 ease-in-out
+        focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2
+        ${isDone ? 'bg-green-500 hover:bg-green-600' : 'bg-gray-300 hover:bg-gray-400'}
+        ${isUpdating ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}
+      `}
+      title={isDone ? 'Tandai sebagai Pending' : 'Tandai sebagai Siap'}
+    >
+      <span
+        className={`
+          inline-block h-6 w-6 transform rounded-full bg-white shadow-md transition-transform duration-300 ease-in-out
+          ${isDone ? 'translate-x-9' : 'translate-x-1'}
+        `}
+      />
+    </button>
+  );
+};
+
 // --- Order Card ---
 const OrderCard = ({ order, onViewDetails }) => {
-  // ✅ Count by quantity, not by menu items
   const pendingQty = order.items
     .filter(item => item.status === 'pending')
     .reduce((sum, item) => sum + item.quantity, 0);
@@ -76,19 +122,18 @@ const OrderCard = ({ order, onViewDetails }) => {
   );
 };
 
-// --- Order Modal with Inline Toggle ---
+// --- Order Modal ---
 const OrderModal = ({ order, isOpen, onClose, onItemStatusUpdate, isUpdating }) => {
   if (!isOpen || !order) return null;
 
-  // ✅ Count by quantity
   const pendingQty = order.items
     .filter(item => item.status === 'pending')
     .reduce((sum, item) => sum + item.quantity, 0);
   
-  const pendingItems = order.items.filter((item) => item.status === 'pending');
   const allItemsDone = order.items.every((item) => item.status === 'done');
 
   const handleToggle = (itemId, currentStatus) => {
+    // Logic toggle status sebenarnya
     const newStatus = currentStatus === 'pending' ? 'done' : 'pending';
     onItemStatusUpdate(itemId, newStatus);
   };
@@ -151,7 +196,7 @@ const OrderModal = ({ order, isOpen, onClose, onItemStatusUpdate, isUpdating }) 
             </div>
           )}
 
-          {/* Items List - Inline Toggle Design */}
+          {/* Items List */}
           <div className="space-y-3">
             <h3 className="text-sm font-semibold text-gray-700 mb-3">Daftar Pesanan</h3>
             
@@ -164,13 +209,11 @@ const OrderModal = ({ order, isOpen, onClose, onItemStatusUpdate, isUpdating }) 
                     ? 'bg-green-50 border-green-200' 
                     : 'bg-white border-cream-200 hover:border-cream-300'
                   }
-                  ${isUpdating ? 'opacity-50 pointer-events-none' : ''}
                 `}
               >
                 {/* Left: Item Info */}
                 <div className="flex-1 min-w-0 pr-4">
                   <div className="flex items-start gap-3">
-                    {/* Status Icon */}
                     <div className="flex-shrink-0 mt-1">
                       {item.status === 'done' ? (
                         <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center">
@@ -183,7 +226,6 @@ const OrderModal = ({ order, isOpen, onClose, onItemStatusUpdate, isUpdating }) 
                       )}
                     </div>
 
-                    {/* Item Details */}
                     <div className="flex-1 min-w-0">
                       <h4 className={`font-bold text-base mb-1 ${item.status === 'done' ? 'text-green-900 line-through' : 'text-gray-900'}`}>
                         {item.name}
@@ -211,29 +253,13 @@ const OrderModal = ({ order, isOpen, onClose, onItemStatusUpdate, isUpdating }) 
                   </div>
                 </div>
 
-                {/* Right: Toggle Switch */}
+                {/* Right: Custom Animated Toggle Switch */}
                 <div className="flex-shrink-0">
-                  <button
-                    onClick={() => handleToggle(item.id, item.status)}
-                    disabled={isUpdating}
-                    className={`
-                      relative inline-flex h-8 w-16 items-center rounded-full transition-colors
-                      focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2
-                      ${item.status === 'done' 
-                        ? 'bg-green-500 hover:bg-green-600' 
-                        : 'bg-gray-300 hover:bg-gray-400'
-                      }
-                      ${isUpdating ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}
-                    `}
-                    title={item.status === 'done' ? 'Tandai sebagai Pending' : 'Tandai sebagai Siap'}
-                  >
-                    <span
-                      className={`
-                        inline-block h-6 w-6 transform rounded-full bg-white transition-transform
-                        ${item.status === 'done' ? 'translate-x-9' : 'translate-x-1'}
-                      `}
-                    />
-                  </button>
+                  <ToggleItem 
+                    item={item} 
+                    onToggle={handleToggle}
+                    isUpdating={isUpdating}
+                  />
                 </div>
               </div>
             ))}
@@ -277,7 +303,7 @@ const KitchenStationContent = () => {
 
   const stationType = 'kitchen';
 
-  // 🔥 FETCH ORDERS dengan auto-refetch 30 detik
+  // 🔥 FETCH ORDERS
   const { 
     data: ordersResponse, 
     isLoading, 
@@ -294,7 +320,7 @@ const KitchenStationContent = () => {
 
   const orders = transformBackendOrders(ordersResponse) || [];
   
-  // ✅ Filter out orders dengan semua item done (client-side safety)
+  // Filter untuk Grid Tampilan (Hanya menampilkan yang punya item pending)
   const activeOrders = orders.filter(order => 
     order.items.some(item => item.status === 'pending')
   );
@@ -303,7 +329,14 @@ const KitchenStationContent = () => {
     ? activeOrders 
     : activeOrders.filter(o => o.tableNumber === parseInt(tableFilter));
 
-  // 🔥 MUTATION untuk update status item
+  // ✅ LIVE DATA UNTUK MODAL
+  // Mengambil data terbaru dari list 'orders' real-time.
+  // Ini memastikan Modal tetap terbuka dan menampilkan status terbaru meskipun order tersebut sudah selesai semua.
+  const liveSelectedOrder = selectedOrder 
+    ? (orders.find(o => o.id === selectedOrder.id) || selectedOrder) 
+    : null;
+
+  // 🔥 MUTATION
   const updateStatusMutation = useMutation({
     mutationFn: ({ itemId, status }) => 
       kitchenApi.updateItemStatus(itemId, mapStatusToBackend(status)),
@@ -314,7 +347,7 @@ const KitchenStationContent = () => {
       queryClient.setQueryData(['station-orders', stationType], (old) => {
         if (!old?.data?.orders) return old;
         
-        // Update item status
+        // Optimistic Update: Ubah status item di cache local
         const updatedOrders = old.data.orders.map(order => ({
           ...order,
           items: order.items.map(item => 
@@ -322,18 +355,16 @@ const KitchenStationContent = () => {
               ? { ...item, status: mapStatusToBackend(status) }
               : item
           )
-        }))
-        // ✅ Remove orders where ALL items are done
-        .filter(order => 
-          order.items.some(item => item.status.toLowerCase() === 'pending')
-        );
+        }));
+        
+        // ⚠️ JANGAN PAKAI FILTER DISINI
+        // Kita biarkan data "done" tetap ada di cache agar Modal bisa membacanya tanpa error
         
         return {
           ...old,
           data: {
             ...old.data,
             orders: updatedOrders,
-            total_orders: updatedOrders.length
           }
         };
       });
@@ -376,7 +407,6 @@ const KitchenStationContent = () => {
 
   const tableNumbers = [...new Set(activeOrders.map((o) => o.tableNumber))].sort((a, b) => a - b);
 
-  // Loading State
   if (isLoading) {
     return (
       <div className="flex min-h-screen bg-cream-50 items-center justify-center">
@@ -391,7 +421,6 @@ const KitchenStationContent = () => {
     );
   }
 
-  // Error State
   if (isError) {
     return (
       <div className="flex min-h-screen bg-cream-50 items-center justify-center">
@@ -418,7 +447,7 @@ const KitchenStationContent = () => {
     <div className="flex min-h-screen bg-cream-50">
       <Sidebar stationType="kitchen" />
 
-      <div className={`flex-1 transition-all duration-300 ${isCollapsed ? 'lg:ml-0' : 'lg:ml-64'}`}>
+      <div className={`flex-1 transition-all duration-300 ${isCollapsed ? 'ml-16' : 'ml-64'}`}>
         {/* Header */}
         <div className="bg-white border-b border-cream-200 px-8 py-6 flex justify-between items-center">
           <div>
@@ -496,9 +525,9 @@ const KitchenStationContent = () => {
         </div>
       </div>
 
-      {/* Modal */}
+      {/* Modal - MENGGUNAKAN LIVE DATA */}
       <OrderModal
-        order={selectedOrder}
+        order={liveSelectedOrder} 
         isOpen={!!selectedOrder}
         onClose={() => setSelectedOrder(null)}
         onItemStatusUpdate={handleItemStatusUpdate}

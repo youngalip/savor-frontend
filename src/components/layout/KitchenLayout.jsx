@@ -1,25 +1,30 @@
-import { Outlet } from 'react-router-dom';
-import KitchenSidebar, { KitchenSidebarProvider, useSidebar } from '../kitchen/Sidebar';
+import { Outlet } from "react-router-dom";
+import Sidebar, { SidebarProvider, useSidebar } from "../../../components/kitchen/Sidebar";
 
-const KitchenLayoutContent = () => {
+const LayoutContent = ({ stationType }) => {
   const { isCollapsed } = useSidebar();
-  
+
   return (
-    <div className="flex min-h-screen bg-cream-50">
-      <KitchenSidebar />
-      <div className={`flex-1 transition-all duration-300 ${isCollapsed ? 'ml-0' : 'ml-64'}`}>
+    <div className="flex bg-cream-50 min-h-screen">
+      <Sidebar stationType={stationType} />
+
+      {/* CONTENT SELALU PUNYA MARGIN KETIKA SIDEBAR ADA */}
+      <div
+        className={`
+          flex-1 transition-all duration-300
+          ${isCollapsed ? "ml-16" : "ml-64"}
+        `}
+      >
         <Outlet />
       </div>
     </div>
   );
 };
 
-const KitchenLayout = ({ stationType = 'kitchen' }) => {
-  return (
-    <KitchenSidebarProvider stationType={stationType}>
-      <KitchenLayoutContent />
-    </KitchenSidebarProvider>
-  );
-};
+const KitchenLayout = ({ stationType = "kitchen" }) => (
+  <SidebarProvider>
+    <LayoutContent stationType={stationType} />
+  </SidebarProvider>
+);
 
 export default KitchenLayout;

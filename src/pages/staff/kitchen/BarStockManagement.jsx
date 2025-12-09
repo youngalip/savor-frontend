@@ -187,7 +187,7 @@ const BarStockManagement = () => {
       
       <div className={`
         flex-1 overflow-auto transition-all duration-300
-        ${isCollapsed ? 'lg:ml-0' : 'lg:ml-64'}
+        ${isCollapsed ? 'ml-16' : 'ml-64'}
       `}>
         <div className="mt-16 lg:mt-0">
           {/* ✅ UPDATED: Pass correct stats to StockHeader */}
