@@ -327,11 +327,9 @@ const KitchenStationContent = () => {
   
   const filteredOrders = tableFilter === 'all' 
     ? activeOrders 
-    : activeOrders.filter(o => o.tableNumber === parseInt(tableFilter));
+    : activeOrders.filter(o => String(o.tableNumber) === String(tableFilter)); 
 
   // ✅ LIVE DATA UNTUK MODAL
-  // Mengambil data terbaru dari list 'orders' real-time.
-  // Ini memastikan Modal tetap terbuka dan menampilkan status terbaru meskipun order tersebut sudah selesai semua.
   const liveSelectedOrder = selectedOrder 
     ? (orders.find(o => o.id === selectedOrder.id) || selectedOrder) 
     : null;

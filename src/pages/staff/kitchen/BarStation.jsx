@@ -326,7 +326,7 @@ const BarStationContent = () => {
   
   const filteredOrders = tableFilter === 'all' 
     ? activeOrders 
-    : activeOrders.filter(o => o.tableNumber === parseInt(tableFilter));
+    : activeOrders.filter(o => String(o.tableNumber) === String(tableFilter));
 
   // ✅ LIVE DATA UNTUK MODAL
   const liveSelectedOrder = selectedOrder 
