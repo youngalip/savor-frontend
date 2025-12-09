@@ -7,6 +7,7 @@ import ConfirmationDialog from '../../../components/cashier/ConfirmationDialog';
 import { useCashierData } from '../../../hooks/useCashierData';
 import cashierApi from '../../../services/cashierApi';
 import { RefreshCw, CheckCircle } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 const ReadyOrders = () => {
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -78,7 +79,7 @@ const ReadyOrders = () => {
       setSelectedOrder(null);
       
       console.log(`✅ Pesanan #${confirmAction.orderNumber} telah selesai!`);
-      alert(`✅ Pesanan #${confirmAction.orderNumber} berhasil ditandai selesai!`);
+      toast.success(`✅ Pesanan #${confirmAction.orderNumber} berhasil ditandai selesai!`, { icon: null });
       
       await new Promise(resolve => setTimeout(resolve, 500));
       
@@ -99,7 +100,7 @@ const ReadyOrders = () => {
       
     } catch (error) {
       console.error('❌ Failed to complete order:', error);
-      alert('❌ Gagal menandai selesai: ' + (error.message || 'Unknown error'));
+      toast.error('❌ Gagal menandai selesai: ' + (error?.message || 'Unknown error'), { icon: null });
       setShowConfirmation(false);
     } finally {
       setIsCompleting(false);
@@ -198,7 +199,7 @@ const ReadyOrders = () => {
             <div>
               <h1 className="text-3xl font-bold text-[#8b1538]">Pesanan Siap</h1>
               <p className="text-gray-600 mt-1">
-                Pesanan yang sudah selesai diproses dan siap untuk diantar
+                Pesanan yang sudah selesai diproses dapur dan siap untuk diantar
               </p>
             </div>
             <button
