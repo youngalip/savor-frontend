@@ -7,6 +7,7 @@ import ConfirmationDialog from '../../../components/cashier/ConfirmationDialog';
 import { useCashierData } from '../../../hooks/useCashierData';
 import cashierApi from '../../../services/cashierApi';
 import { RefreshCw } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 const AllOrders = () => {
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -53,16 +54,16 @@ const AllOrders = () => {
       setShowConfirmation(false);
       setSelectedOrder(null);
       refetch();
-      alert('✅ Pembayaran berhasil divalidasi!');
+      toast.success('✅ Pembayaran berhasil divalidasi!', { icon: null });
     } catch (error) {
-      alert('❌ Gagal validasi: ' + error.message);
+      toast.error('❌ Gagal validasi: ' + (error?.message || 'Terjadi kesalahan'), { icon: null });
       setShowConfirmation(false);
     }
   };
 
   // Execute confirmation action
   const executeConfirmation = () => {
-    if (confirmAction.type === 'validate') {
+    if (confirmAction && confirmAction.type === 'validate') {
       executeValidatePayment();
     }
   };
