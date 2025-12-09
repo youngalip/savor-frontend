@@ -231,28 +231,54 @@ const AccountManagement = () => {
   };
 
   const handleDelete = async (id) => {
-    const staffMember = staff.find(s => s.id === id);
-    
-    if (!window.confirm(`Apakah Anda yakin ingin menghapus akun ${staffMember.name}?`)) {
-      return;
-    }
+    const staffMember = staff.find((s) => s.id === id);
 
-    const loadingToast = toast.loading('Menghapus user...');
-    
+    // BUAT KONFIRMASI PAKAI CUSTOM TOAST
+    toast((t) => (
+      <div className="p-3">
+        <p className="font-medium mb-3">
+          Hapus akun <span className="font-bold">{staffMember.name}</span>?
+        </p>
+
+        <div className="flex justify-end gap-2">
+          <button
+            className="px-3 py-1 bg-gray-200 rounded"
+            onClick={() => toast.dismiss(t.id)}
+          >
+            Batal
+          </button>
+
+          <button
+            className="px-3 py-1 bg-red-600 text-white rounded"
+            onClick={() => {
+              toast.dismiss(t.id);
+              confirmDelete(id); // lanjut proses delete
+            }}
+          >
+            Hapus
+          </button>
+        </div>
+      </div>
+    ));
+  };
+
+  const confirmDelete = async (id) => {
+    const loadingToast = toast.loading("Menghapus user...");
+
     try {
       const response = await ownerApi.deleteUser(id);
-      
+
       if (response.success) {
-        toast.success('User berhasil dihapus!', { id: loadingToast });
-        fetchStaff(); // Refresh list
+        toast.success("User berhasil dihapus!", { id: loadingToast });
+        fetchStaff();
       } else {
-        toast.error(response.message || 'Gagal menghapus user', { id: loadingToast });
+        toast.error(response.message || "Gagal menghapus user", { id: loadingToast });
       }
-    } catch (error) {
-      console.error('Error deleting user:', error);
-      toast.error(error.message || 'Gagal menghapus user', { id: loadingToast });
+    } catch (err) {
+      toast.error("Gagal menghapus user", { id: loadingToast });
     }
   };
+
 
   const handleToggleStatus = async (id, currentStatus) => {
     const loadingToast = toast.loading('Mengubah status...');
