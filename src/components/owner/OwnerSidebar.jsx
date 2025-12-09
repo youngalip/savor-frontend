@@ -56,16 +56,6 @@ const OwnerSidebar = () => {
       path: '/owner/dashboard',
     },
     {
-      name: 'Monitor Kasir',
-      icon: Receipt,
-      path: '/owner/cashier-monitor',
-    },
-    {
-      name: 'Monitor Dapur',
-      icon: ChefHat,
-      path: '/owner/kitchen-monitor',
-    },
-    {
       name: 'Laporan Penjualan',
       icon: BarChart3,
       path: '/owner/sales-report',
@@ -88,15 +78,15 @@ const OwnerSidebar = () => {
   ];
 
   const handleLogout = async () => {
-    if (window.confirm('Apakah Anda yakin ingin keluar?')) {
-      try {
-        await logout();
-        toast.success('Logout berhasil');
-        navigate('/login');
-      } catch (error) {
-        console.error('Logout error:', error);
-        toast.error('Logout gagal');
-      }
+    toast.loading('Sedang logout...', { id: 'logout' });
+
+    try {
+      await logout();
+      toast.success('Logout berhasil', { id: 'logout' });
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+      toast.error('Logout gagal', { id: 'logout' });
     }
   };
 

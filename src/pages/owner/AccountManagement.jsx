@@ -328,42 +328,83 @@ const AccountManagement = () => {
     const loadingToast = toast.loading(editingStaff ? 'Mengupdate user...' : 'Membuat user baru...');
 
     try {
-      // Prepare data - hapus password jika kosong saat edit
-      const submitData = { ...formData };
-      if (editingStaff && !formData.password) {
-        delete submitData.password;
-      }
-
       let response;
+      
       if (editingStaff) {
+        // ✅ UPDATE MODE - Data tanpa password
+        const submitData = {
+          name: formData.name,
+          email: formData.email,
+          role: formData.role,
+          is_active: formData.is_active
+        };
+        
+        // Update basic user info
         response = await ownerApi.updateUser(editingStaff.id, submitData);
+        
+        if (!response.success) {
+          toast.error(response.message || 'Gagal mengupdate user', { id: loadingToast });
+          return;
+        }
+        
+        // ✅ Jika ada password, update terpisah
+        if (formData.password && formData.password.trim() !== '') {
+          const passwordResponse = await ownerApi.resetPassword(
+            editingStaff.id, 
+            formData.password
+          );
+          
+          if (!passwordResponse.success) {
+            toast.error('User diupdate tapi password gagal diubah', { id: loadingToast });
+            return;
+          }
+        }
+        
+        toast.success('User berhasil diupdate!', { id: loadingToast });
+        
       } else {
+        // ✅ CREATE MODE - Data dengan password
+        const submitData = {
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+          role: formData.role,
+          is_active: true
+        };
+        
         response = await ownerApi.createUser(submitData);
-      }
-
-      if (response.success) {
-        toast.success(
-          editingStaff ? 'User berhasil diupdate!' : 'User berhasil dibuat!',
-          { id: loadingToast }
-        );
         
-        setShowAddModal(false);
-        setEditingStaff(null);
-        setFormData({
-          name: "",
-          email: "",
-          password: "",
-          role: "",
-          is_active: true,
-        });
+        if (!response.success) {
+          toast.error(response.message || 'Gagal membuat user', { id: loadingToast });
+          return;
+        }
         
-        fetchStaff(); // Refresh list
-      } else {
-        toast.error(response.message || 'Operasi gagal', { id: loadingToast });
+        toast.success('User berhasil dibuat!', { id: loadingToast });
       }
+      
+      // ✅ Reset form & close modal
+      setShowAddModal(false);
+      setEditingStaff(null);
+      setFormData({
+        name: "",
+        email: "",
+        password: "",
+        role: "",
+        is_active: true,
+      });
+      
+      // ✅ Refresh list
+      fetchStaff();
+      
     } catch (error) {
       console.error('Error saving user:', error);
-      toast.error(error.message || 'Gagal menyimpan user', { id: loadingToast });
+      
+      // Handle specific error messages
+      const errorMessage = error.response?.data?.message 
+        || error.message 
+        || 'Gagal menyimpan user';
+      
+      toast.error(errorMessage, { id: loadingToast });
     }
   };
 
