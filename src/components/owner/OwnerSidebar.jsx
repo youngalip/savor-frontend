@@ -56,16 +56,6 @@ const OwnerSidebar = () => {
       path: '/owner/dashboard',
     },
     {
-      name: 'Monitor Kasir',
-      icon: Receipt,
-      path: '/owner/cashier-monitor',
-    },
-    {
-      name: 'Monitor Dapur',
-      icon: ChefHat,
-      path: '/owner/kitchen-monitor',
-    },
-    {
       name: 'Laporan Penjualan',
       icon: BarChart3,
       path: '/owner/sales-report',

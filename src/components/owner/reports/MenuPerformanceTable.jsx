@@ -75,7 +75,7 @@ const MenuPerformanceTable = ({ data, loading = false }) => {
                 )}
               </div>
               <div className="flex-1">
-                <p className="font-semibold text-gray-900">{item.name}</p>
+                <p className="font-semibold text-gray-900">{item.menu_name}</p>
                 <p className="text-sm text-gray-500">
                   {item.category} • {item.quantity_sold} terjual
                 </p>

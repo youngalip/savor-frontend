@@ -403,7 +403,7 @@ const SalesReport = () => {
               />
 
               {/* Revenue Stats */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <StatCard
                   title="Total Revenue"
                   value={formatCurrency(revenueData?.data?.total_revenue || 0)}
@@ -417,14 +417,6 @@ const SalesReport = () => {
                   value={formatCurrency((revenueData?.data?.total_revenue || 0) / (revenueData?.data?.daily_data?.length || 1))}
                   subtitle="Rata-rata per hari"
                   icon={Calendar}
-                  loading={revenueLoading}
-                />
-                <StatCard
-                  title="Growth Rate"
-                  value={`${revenueData?.data?.growth_rate > 0 ? '+' : ''}${revenueData?.data?.growth_rate?.toFixed(1) || 0}%`}
-                  subtitle="vs periode sebelumnya"
-                  icon={TrendingUp}
-                  color={revenueData?.data?.growth_rate >= 0 ? 'bg-green-500' : 'bg-red-500'}
                   loading={revenueLoading}
                 />
               </div>

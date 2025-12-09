@@ -1,4 +1,3 @@
-// src/components/owner/reports/PaymentMethodsCard.jsx
 import { CreditCard, Wallet, Banknote } from 'lucide-react';
 
 /**
@@ -73,15 +72,16 @@ const PaymentMethodsCard = ({ data, loading = false }) => {
     );
   }
 
-  // Calculate total
-  const total = data.reduce((sum, method) => sum + method.revenue, 0);
+  // Calculate total - support both 'amount' and 'revenue' fields
+  const total = data.reduce((sum, method) => sum + (method.amount || method.revenue || 0), 0);
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
       <h2 className="text-lg font-bold text-gray-900 mb-4">Metode Pembayaran</h2>
       <div className="space-y-3">
         {data.map((method) => {
-          const percentage = total > 0 ? (method.revenue / total * 100) : 0;
+          const amount = method.amount || method.revenue || 0;
+          const percentage = total > 0 ? (amount / total * 100) : 0;
           
           return (
             <div
@@ -101,7 +101,7 @@ const PaymentMethodsCard = ({ data, loading = false }) => {
               </div>
               <div className="text-right">
                 <p className="font-bold text-primary-600">
-                  {formatCurrency(method.revenue)}
+                  {formatCurrency(amount)}
                 </p>
               </div>
             </div>

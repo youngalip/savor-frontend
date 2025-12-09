@@ -35,8 +35,6 @@ import { SidebarProvider as KitchenSidebarProvider } from "./components/kitchen/
 
 // Owner
 import OwnerDashboard from "./pages/owner/OwnerDashboard";
-import CashierMonitor from "./pages/owner/CashierMonitor";
-import KitchenMonitor from "./pages/owner/KitchenMonitor";
 import SalesReport from "./pages/owner/SalesReport";
 import TableManagement from "./pages/owner/TableManagement";
 import MenuManagement from "./pages/owner/MenuManagement"; // ADD THIS
@@ -154,8 +152,6 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <OwnerDashboard /> },
       { path: "dashboard", element: <OwnerDashboard /> },
-      { path: "cashier-monitor", element: <CashierMonitor /> },
-      { path: "kitchen-monitor", element: <KitchenMonitor /> },
       { path: "sales-report", element: <SalesReport /> },
       { path: "table-management", element: <TableManagement /> },
       { path: "menu-management", element: <MenuManagement /> }, // NEW ROUTE

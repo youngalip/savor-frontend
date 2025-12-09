@@ -194,7 +194,7 @@ const RevenueChart = ({ data, loading = false, viewType, onViewTypeChange }) => 
 
       {/* Comparison Summary */}
       {data?.comparison && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <div className="bg-gradient-to-br from-primary-50 to-primary-100 rounded-lg p-4">
             <p className="text-xs text-primary-700 font-medium mb-1">Periode Ini</p>
             <p className="text-xl font-bold text-primary-900">
@@ -207,26 +207,6 @@ const RevenueChart = ({ data, loading = false, viewType, onViewTypeChange }) => 
             <p className="text-xl font-bold text-gray-900">
               {formatCurrency(data.comparison.previous_total)}
             </p>
-          </div>
-          
-          <div className={`rounded-lg p-4 ${
-            data.comparison.growth_rate >= 0 
-              ? 'bg-gradient-to-br from-green-50 to-green-100' 
-              : 'bg-gradient-to-br from-red-50 to-red-100'
-          }`}>
-            <p className="text-xs font-medium mb-1 text-gray-600">Pertumbuhan</p>
-            <div className="flex items-center gap-2">
-              {data.comparison.growth_rate >= 0 ? (
-                <TrendingUp className="text-green-600" size={20} />
-              ) : (
-                <TrendingDown className="text-red-600" size={20} />
-              )}
-              <p className={`text-xl font-bold ${
-                data.comparison.growth_rate >= 0 ? 'text-green-600' : 'text-red-600'
-              }`}>
-                {data.comparison.growth_rate >= 0 ? '+' : ''}{data.comparison.growth_rate.toFixed(1)}%
-              </p>
-            </div>
           </div>
         </div>
       )}
