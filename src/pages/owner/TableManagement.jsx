@@ -1,6 +1,8 @@
 // src/pages/owner/TableManagement.jsx
 import { useState, useEffect } from 'react'
 import { Plus } from 'lucide-react'
+import { ToastContainer, toast } from 'react-toastify'
+import 'react-toastify/dist/ReactToastify.css'
 import OwnerSidebar, { useOwnerSidebar } from '../../components/owner/OwnerSidebar'
 import { 
   TableCard, 
@@ -58,14 +60,54 @@ const TableManagement = () => {
 
   const handleDelete = async (id) => {
     const table = tables.find(t => t.id === id)
-    if (window.confirm(`Apakah Anda yakin ingin menghapus Meja ${table.table_number}?`)) {
-      try {
-        await deleteTable(id)
-        alert('Meja berhasil dihapus!')
-      } catch (error) {
-        alert(error.message)
+    
+    // Toast confirmation untuk delete
+    toast.info(
+      <div>
+        <p className="font-semibold mb-2">Hapus Meja {table.table_number}?</p>
+        <p className="text-sm text-gray-600 mb-3">Tindakan ini tidak dapat dibatalkan.</p>
+        <div className="flex gap-2">
+          <button
+            onClick={async () => {
+              toast.dismiss()
+              const deleteToast = toast.loading('Menghapus meja...')
+              try {
+                await deleteTable(id)
+                toast.update(deleteToast, {
+                  render: 'Meja berhasil dihapus!',
+                  type: 'success',
+                  isLoading: false,
+                  autoClose: 3000
+                })
+              } catch (error) {
+                toast.update(deleteToast, {
+                  render: error.message || 'Gagal menghapus meja',
+                  type: 'error',
+                  isLoading: false,
+                  autoClose: 3000
+                })
+              }
+            }}
+            className="flex-1 px-3 py-1.5 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition-colors"
+          >
+            Hapus
+          </button>
+          <button
+            onClick={() => toast.dismiss()}
+            className="flex-1 px-3 py-1.5 bg-gray-200 text-gray-700 text-sm rounded hover:bg-gray-300 transition-colors"
+          >
+            Batal
+          </button>
+        </div>
+      </div>,
+      {
+        position: "top-center",
+        autoClose: false,
+        closeButton: false,
+        closeOnClick: false,
+        draggable: false
       }
-    }
+    )
   }
 
   const handleShowQR = (table) => {
@@ -74,33 +116,84 @@ const TableManagement = () => {
   }
 
   const handleRegenerateQR = async (tableId) => {
-    if (window.confirm('Regenerate QR code?\n\nQR code lama akan tidak valid.')) {
-      setIsRegenerating(true)
-      try {
-        const response = await regenerateQR(tableId)
-        alert('QR code berhasil digenerate ulang!')
-        
-        // Update selected table jika sedang dibuka
-        if (selectedTable?.id === tableId) {
-          setSelectedTable(response.data.table)
-        }
-      } catch (error) {
-        alert(error.message)
-      } finally {
-        setIsRegenerating(false)
+    // Toast confirmation untuk regenerate QR
+    toast.warning(
+      <div>
+        <p className="font-semibold mb-2">Regenerate QR Code?</p>
+        <p className="text-sm text-gray-600 mb-3">QR code lama akan tidak valid.</p>
+        <div className="flex gap-2">
+          <button
+            onClick={async () => {
+              toast.dismiss()
+              setIsRegenerating(true)
+              const regenerateToast = toast.loading('Membuat QR code baru...')
+              try {
+                const response = await regenerateQR(tableId)
+                toast.update(regenerateToast, {
+                  render: 'QR code berhasil digenerate ulang!',
+                  type: 'success',
+                  isLoading: false,
+                  autoClose: 3000
+                })
+                
+                // Update selected table jika sedang dibuka
+                if (selectedTable?.id === tableId) {
+                  setSelectedTable(response.data.table)
+                }
+              } catch (error) {
+                toast.update(regenerateToast, {
+                  render: error.message || 'Gagal regenerate QR code',
+                  type: 'error',
+                  isLoading: false,
+                  autoClose: 3000
+                })
+              } finally {
+                setIsRegenerating(false)
+              }
+            }}
+            className="px-3 py-1.5 bg-primary-500 text-white text-sm rounded hover:bg-primary-600 transition-colors"
+          >
+            Regenerate
+          </button>
+          <button
+            onClick={() => toast.dismiss()}
+            className="flex-1 px-3 py-1.5 bg-gray-200 text-gray-700 text-sm rounded hover:bg-gray-300 transition-colors"
+          >
+            Batal
+          </button>
+        </div>
+      </div>,
+      {
+        position: "top-center",
+        autoClose: false,
+        closeButton: false,
+        closeOnClick: false,
+        draggable: false
       }
-    }
+    )
   }
 
   const handleSaveTable = async (formData) => {
     setIsSaving(true)
+    const saveToast = toast.loading(editingTable ? 'Mengupdate meja...' : 'Membuat meja baru...')
+    
     try {
       if (editingTable) {
         await updateTable(editingTable.id, formData)
-        alert('Meja berhasil diupdate!')
+        toast.update(saveToast, {
+          render: 'Meja berhasil diupdate!',
+          type: 'success',
+          isLoading: false,
+          autoClose: 3000
+        })
       } else {
         const response = await createTable(formData)
-        alert('Meja berhasil dibuat!')
+        toast.update(saveToast, {
+          render: 'Meja berhasil dibuat!',
+          type: 'success',
+          isLoading: false,
+          autoClose: 3000
+        })
         
         // Auto-open QR modal for new table
         if (response.data.table) {
@@ -114,7 +207,12 @@ const TableManagement = () => {
       setShowFormModal(false)
       setEditingTable(null)
     } catch (error) {
-      alert(error.message)
+      toast.update(saveToast, {
+        render: error.message || 'Gagal menyimpan data meja',
+        type: 'error',
+        isLoading: false,
+        autoClose: 3000
+      })
     } finally {
       setIsSaving(false)
     }
@@ -130,6 +228,19 @@ const TableManagement = () => {
 
   return (
     <div className="flex min-h-screen bg-cream-50">
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop={true}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="light"
+      />
+      
       <OwnerSidebar />
       <div className={`flex-1 transition-all duration-300 ${isCollapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
         <div className="p-8 mt-16 lg:mt-0">

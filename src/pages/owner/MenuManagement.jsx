@@ -1,5 +1,7 @@
 // src/pages/owner/MenuManagement.jsx - PART 1: Components & Modals
 import { useState, useEffect, useRef } from 'react';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import OwnerSidebar, { useOwnerSidebar } from '../../components/owner/OwnerSidebar';
 import menuService from '../../services/menuAdminService';
 import { 
@@ -181,7 +183,7 @@ const ImageUploadModal = ({ menu, onClose, onUpload }) => {
     const file = e.target.files[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
-        alert('Ukuran file maksimal 5MB');
+        toast.error('Ukuran file maksimal 5MB');
         return;
       }
       setSelectedFile(file);
@@ -193,11 +195,24 @@ const ImageUploadModal = ({ menu, onClose, onUpload }) => {
     if (!selectedFile) return;
     
     setUploading(true);
+    const uploadToast = toast.loading('Mengupload gambar...');
+    
     try {
       await onUpload(menu.id, selectedFile);
+      toast.update(uploadToast, {
+        render: 'Gambar berhasil diupload!',
+        type: 'success',
+        isLoading: false,
+        autoClose: 3000
+      });
       onClose();
     } catch (error) {
-      alert('Gagal upload gambar: ' + (error.message || error));
+      toast.update(uploadToast, {
+        render: error.message || 'Gagal upload gambar',
+        type: 'error',
+        isLoading: false,
+        autoClose: 3000
+      });
     } finally {
       setUploading(false);
     }
@@ -279,13 +294,13 @@ const MenuFormModal = ({ menu, categories, subcategories, onClose, onSave }) => 
     const file = e.target.files[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
-        alert('Ukuran file maksimal 5MB');
+        toast.error('Ukuran file maksimal 5MB');
         return;
       }
       
       const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
       if (!validTypes.includes(file.type)) {
-        alert('Format file tidak didukung. Gunakan JPG, PNG, atau WEBP');
+        toast.error('Format file tidak didukung. Gunakan JPG, PNG, atau WEBP');
         return;
       }
 
@@ -306,16 +321,29 @@ const MenuFormModal = ({ menu, categories, subcategories, onClose, onSave }) => 
     e.preventDefault();
     
     if (!formData.name || !formData.category_id || !formData.price) {
-      alert('Mohon lengkapi semua field yang wajib diisi');
+      toast.error('Mohon lengkapi semua field yang wajib diisi');
       return;
     }
 
     setSaving(true);
+    const saveToast = toast.loading(menu ? 'Mengupdate menu...' : 'Membuat menu baru...');
+    
     try {
       await onSave(formData, imageFile);
+      toast.update(saveToast, {
+        render: menu ? 'Menu berhasil diupdate!' : 'Menu berhasil dibuat!',
+        type: 'success',
+        isLoading: false,
+        autoClose: 3000
+      });
       onClose();
     } catch (error) {
-      alert('Gagal menyimpan menu: ' + (error.message || error));
+      toast.update(saveToast, {
+        render: error.message || 'Gagal menyimpan menu',
+        type: 'error',
+        isLoading: false,
+        autoClose: 3000
+      });
     } finally {
       setSaving(false);
     }
@@ -540,7 +568,7 @@ const MenuManagement = () => {
   const [categories, setCategories] = useState([]);
   const [subcategories, setSubcategories] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const debouncedSearch = useDebounce(searchQuery, 500); // Debounce 500ms
+  const debouncedSearch = useDebounce(searchQuery, 500);
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterStock, setFilterStock] = useState('all');
   const [showFormModal, setShowFormModal] = useState(false);
@@ -548,7 +576,7 @@ const MenuManagement = () => {
   const [editingMenu, setEditingMenu] = useState(null);
   const [uploadingMenu, setUploadingMenu] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [searching, setSearching] = useState(false); // Separate loading for search
+  const [searching, setSearching] = useState(false);
   const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0 });
 
   const [statsGlobal, setStatsGlobal] = useState({
@@ -558,15 +586,12 @@ const MenuManagement = () => {
     outOfStock: 0
   });
 
-  // Reset page when filters or search change
   useEffect(() => {
     setPagination(prev => ({ ...prev, page: 1 }));
   }, [filterCategory, debouncedSearch]);
 
-  // Load data on page change or filters
   useEffect(() => {
     loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pagination.page, filterCategory, filterStock, debouncedSearch]);
 
   // ============================================================================
@@ -574,7 +599,6 @@ const MenuManagement = () => {
   // ============================================================================
 
   const loadData = async () => {
-    // Only show full loading on initial load
     if (pagination.page === 1 && !menus.length) {
       setLoading(true);
     } else {
@@ -582,7 +606,6 @@ const MenuManagement = () => {
     }
     
     try {
-      // 1) Fetch page data
       const menusRes = await menuService.getMenus({ 
         page: pagination.page, 
         limit: pagination.limit,
@@ -600,7 +623,6 @@ const MenuManagement = () => {
         setMenus(pageMenus);
         setPagination(prev => ({ ...prev, total, page: pageFromResponse, limit: limitFromResponse }));
 
-        // 2) Fetch ALL data (only to compute global stats)
         if (total === 0) {
           setStatsGlobal({ total: 0, available: 0, lowStock: 0, outOfStock: 0 });
         } else if (total <= limitFromResponse) {
@@ -620,7 +642,7 @@ const MenuManagement = () => {
               computeAndSetGlobalStats(pageMenus, total);
             }
           } catch (errAll) {
-            console.warn('Failed to fetch all menus for stats, falling back to page-based counts', errAll);
+            console.warn('Failed to fetch all menus for stats', errAll);
             computeAndSetGlobalStats(pageMenus, total);
           }
         }
@@ -630,7 +652,6 @@ const MenuManagement = () => {
         setStatsGlobal({ total: 0, available: 0, lowStock: 0, outOfStock: 0 });
       }
 
-      // Fetch categories & subcategories
       const [catsRes, subsRes] = await Promise.all([
         menuService.getCategories(),
         menuService.getSubcategories()
@@ -639,7 +660,7 @@ const MenuManagement = () => {
       if (subsRes && subsRes.success) setSubcategories(subsRes.data || []);
     } catch (error) {
       console.error('Failed to load data:', error);
-      alert('Gagal memuat data: ' + (error.message || error));
+      toast.error(error.message || 'Gagal memuat data');
     } finally {
       setLoading(false);
       setSearching(false);
@@ -658,7 +679,6 @@ const MenuManagement = () => {
     });
   };
 
-  // Client-side filtered menus (stock filter applied on currently loaded page)
   const filteredMenus = menus.filter(menu => {
     const matchSearch = menu.name.toLowerCase().includes(searchQuery.toLowerCase());
     
@@ -687,48 +707,93 @@ const MenuManagement = () => {
 
   const handleDelete = async (id) => {
     const menu = menus.find(m => m.id === id);
-    if (window.confirm(`Apakah Anda yakin ingin menghapus menu "${menu?.name}"?`)) {
-      try {
-        await menuService.deleteMenu(id);
-        loadData();
-      } catch (error) {
-        alert('Gagal menghapus menu: ' + (error.message || error));
+    
+    toast.info(
+      <div>
+        <p className="font-semibold mb-2">Hapus menu "{menu?.name}"?</p>
+        <p className="text-sm text-gray-600 mb-3">Tindakan ini tidak dapat dibatalkan.</p>
+        <div className="flex gap-2">
+          <button
+            onClick={async () => {
+              toast.dismiss();
+              const deleteToast = toast.loading('Menghapus menu...');
+              try {
+                await menuService.deleteMenu(id);
+                toast.update(deleteToast, {
+                  render: 'Menu berhasil dihapus!',
+                  type: 'success',
+                  isLoading: false,
+                  autoClose: 3000
+                });
+                loadData();
+              } catch (error) {
+                toast.update(deleteToast, {
+                  render: error.message || 'Gagal menghapus menu',
+                  type: 'error',
+                  isLoading: false,
+                  autoClose: 3000
+                });
+              }
+            }}
+            className="flex-1 px-3 py-1.5 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition-colors"
+          >
+            Hapus
+          </button>
+          <button
+            onClick={() => toast.dismiss()}
+            className="flex-1 px-3 py-1.5 bg-gray-200 text-gray-700 text-sm rounded hover:bg-gray-300 transition-colors"
+          >
+            Batal
+          </button>
+        </div>
+      </div>,
+      {
+        position: "top-center",
+        autoClose: false,
+        closeButton: false,
+        closeOnClick: false,
+        draggable: false
       }
-    }
+    );
   };
 
   const handleToggleAvailability = async (id, isAvailable) => {
+    const toggleToast = toast.loading('Mengubah status...');
     try {
       await menuService.updateMenu(id, { is_available: isAvailable });
+      toast.update(toggleToast, {
+        render: `Menu berhasil diubah menjadi ${isAvailable ? 'Tersedia' : 'Tidak Tersedia'}`,
+        type: 'success',
+        isLoading: false,
+        autoClose: 2000
+      });
       loadData();
     } catch (error) {
-      alert('Gagal mengubah status: ' + (error.message || error));
+      toast.update(toggleToast, {
+        render: error.message || 'Gagal mengubah status',
+        type: 'error',
+        isLoading: false,
+        autoClose: 3000
+      });
     }
   };
 
   const handleSaveMenu = async (formData, imageFile) => {
-    try {
-      let menuId;
-      
-      if (editingMenu) {
-        // Update existing menu
-        await menuService.updateMenu(editingMenu.id, formData);
-        menuId = editingMenu.id;
-      } else {
-        // Create new menu
-        const result = await menuService.createMenu(formData);
-        menuId = result.data.id;
-      }
-
-      // Upload image if provided
-      if (imageFile && menuId) {
-        await menuService.uploadMenuImage(menuId, imageFile);
-      }
-
-      loadData();
-    } catch (error) {
-      throw error;
+    let menuId;
+    
+    if (editingMenu) {
+      await menuService.updateMenu(editingMenu.id, formData);
+      menuId = editingMenu.id;
+    } else {
+      const result = await menuService.createMenu(formData);
+      menuId = result.data.id;
     }
+
+    if (imageFile && menuId) {
+      await menuService.uploadMenuImage(menuId, imageFile);
+    }
+
+    loadData();
   };
 
   const handleUploadImage = (menu) => {
@@ -737,12 +802,8 @@ const MenuManagement = () => {
   };
 
   const handleImageUpload = async (menuId, file) => {
-    try {
-      await menuService.uploadMenuImage(menuId, file);
-      loadData();
-    } catch (error) {
-      throw error;
-    }
+    await menuService.uploadMenuImage(menuId, file);
+    loadData();
   };
 
   const handlePageChange = (page) => {
@@ -770,6 +831,19 @@ const MenuManagement = () => {
 
   return (
     <div className="flex min-h-screen bg-cream-50">
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop={true}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="light"
+      />
+      
       <OwnerSidebar />
       
       <div className={`flex-1 transition-all duration-300 ${isCollapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
@@ -843,19 +917,6 @@ const MenuManagement = () => {
                   ))}
                 </select>
               </div>
-
-              <div>
-                <select
-                  value={filterStock}
-                  onChange={(e) => setFilterStock(e.target.value)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                >
-                  <option value="all">Semua Stok</option>
-                  <option value="available">Stok Normal</option>
-                  <option value="low">Stok Rendah</option>
-                  <option value="out">Habis</option>
-                </select>
-              </div>
             </div>
           </div>
 
@@ -886,7 +947,6 @@ const MenuManagement = () => {
           {/* Pagination */}
           {totalPages > 1 && (
             <div className="flex justify-center items-center gap-2 mt-8">
-              {/* Previous Button */}
               <button
                 disabled={pagination.page === 1}
                 onClick={() => handlePageChange(pagination.page - 1)}
@@ -895,7 +955,6 @@ const MenuManagement = () => {
                 Sebelumnya
               </button>
 
-              {/* Page Numbers */}
               <div className="flex items-center gap-1">
                 {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                   let pageNum;
@@ -925,7 +984,6 @@ const MenuManagement = () => {
                 })}
               </div>
 
-              {/* Next Button */}
               <button
                 disabled={pagination.page >= totalPages}
                 onClick={() => handlePageChange(pagination.page + 1)}

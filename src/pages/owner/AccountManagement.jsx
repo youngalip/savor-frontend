@@ -1,18 +1,14 @@
 import { useState, useEffect } from "react";
-import OwnerSidebar, {
-  useOwnerSidebar,
-} from "../../components/owner/OwnerSidebar";
+import OwnerSidebar, { useOwnerSidebar } from "../../components/owner/OwnerSidebar";
 import {
   Plus,
   Edit2,
   Trash2,
-  UserCheck,
-  UserX,
   Search,
   Users as UsersIcon,
 } from "lucide-react";
-import toast, { Toaster } from 'react-hot-toast';
-import ownerApi from '../../services/ownerApi';
+import toast, { Toaster } from "react-hot-toast";
+import ownerApi from "../../services/ownerApi";
 
 const getRoleBadge = (role) => {
   const badges = {
@@ -79,9 +75,8 @@ const StaffCard = ({ staff, onEdit, onDelete, onToggleStatus }) => {
   const statusBadge = getStatusBadge(staff.is_active);
 
   return (
-    <div className="card p-5 hover:shadow-md transition-shadow relative"> {/* ✅ TAMBAH relative */}
-      
-      {/* ✅ ICON BUTTONS - Fixed Position (Absolute) */}
+    <div className="card p-5 hover:shadow-md transition-shadow relative">
+      {/* Icon Buttons - Fixed Position */}
       <div className="absolute top-4 right-4 flex gap-2">
         <button
           onClick={() => onEdit(staff)}
@@ -100,7 +95,7 @@ const StaffCard = ({ staff, onEdit, onDelete, onToggleStatus }) => {
       </div>
 
       {/* Avatar & Info */}
-      <div className="flex items-center gap-3 mb-4 pr-20"> {/* ✅ TAMBAH pr-20 untuk spacing icon */}
+      <div className="flex items-center gap-3 mb-4 pr-20">
         <div
           className={`w-12 h-12 ${roleBadge.bg} rounded-full flex items-center justify-center flex-shrink-0`}
         >
@@ -112,7 +107,7 @@ const StaffCard = ({ staff, onEdit, onDelete, onToggleStatus }) => {
               .slice(0, 2)}
           </span>
         </div>
-        <div className="min-w-0 flex-1"> {/* ✅ TAMBAH min-w-0 untuk text truncation */}
+        <div className="min-w-0 flex-1">
           <h3 className="text-lg font-bold text-gray-900 truncate">{staff.name}</h3>
           <p className="text-sm text-gray-500 truncate">{staff.email}</p>
         </div>
@@ -157,7 +152,7 @@ const StaffCard = ({ staff, onEdit, onDelete, onToggleStatus }) => {
 
 const AccountManagement = () => {
   const { isCollapsed } = useOwnerSidebar();
-  
+
   // State
   const [staff, setStaff] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -194,11 +189,11 @@ const AccountManagement = () => {
       if (response.success) {
         setStaff(response.data.users || []);
       } else {
-        toast.error('Gagal memuat data staff');
+        toast.error("Gagal memuat data staff");
       }
     } catch (error) {
-      console.error('Error fetching staff:', error);
-      toast.error(error.message || 'Gagal memuat data staff');
+      console.error("Error fetching staff:", error);
+      toast.error(error.message || "Gagal memuat data staff");
     } finally {
       setLoading(false);
     }
@@ -228,12 +223,13 @@ const AccountManagement = () => {
     inactive: staff.filter((s) => !s.is_active).length,
     kasir: staff.filter((s) => s.role === "Kasir").length,
     kitchen: staff.filter((s) => s.role === "Kitchen").length,
+    bar: staff.filter((s) => s.role === "Bar").length, // Add this line for Bar
+    pastry: staff.filter((s) => s.role === "Pastry").length, // Add this line for Pastry
   };
 
   const handleDelete = async (id) => {
     const staffMember = staff.find((s) => s.id === id);
 
-    // BUAT KONFIRMASI PAKAI CUSTOM TOAST
     toast((t) => (
       <div className="p-3">
         <p className="font-medium mb-3">
@@ -279,24 +275,23 @@ const AccountManagement = () => {
     }
   };
 
-
   const handleToggleStatus = async (id, currentStatus) => {
-    const loadingToast = toast.loading('Mengubah status...');
-    
+    const loadingToast = toast.loading("Mengubah status...");
+
     try {
       const response = await ownerApi.updateUser(id, {
-        is_active: !currentStatus
+        is_active: !currentStatus,
       });
 
       if (response.success) {
         toast.success(`Status berhasil diubah!`, { id: loadingToast });
         fetchStaff(); // Refresh list
       } else {
-        toast.error(response.message || 'Gagal mengubah status', { id: loadingToast });
+        toast.error(response.message || "Gagal mengubah status", { id: loadingToast });
       }
     } catch (error) {
-      console.error('Error toggling status:', error);
-      toast.error(error.message || 'Gagal mengubah status', { id: loadingToast });
+      console.error("Error toggling status:", error);
+      toast.error(error.message || "Gagal mengubah status", { id: loadingToast });
     }
   };
 
@@ -339,76 +334,70 @@ const AccountManagement = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validate required fields
     if (!formData.name || !formData.email || !formData.role) {
-      toast.error('Mohon lengkapi semua field yang diperlukan');
+      toast.error("Mohon lengkapi semua field yang diperlukan");
       return;
     }
 
-    // Password required saat create, optional saat edit
     if (!editingStaff && !formData.password) {
-      toast.error('Password wajib diisi saat membuat user baru');
+      toast.error("Password wajib diisi saat membuat user baru");
       return;
     }
 
-    const loadingToast = toast.loading(editingStaff ? 'Mengupdate user...' : 'Membuat user baru...');
+    const loadingToast = toast.loading(
+      editingStaff ? "Mengupdate user..." : "Membuat user baru..."
+    );
 
     try {
       let response;
-      
+
       if (editingStaff) {
-        // ✅ UPDATE MODE - Data tanpa password
         const submitData = {
           name: formData.name,
           email: formData.email,
           role: formData.role,
-          is_active: formData.is_active
+          is_active: formData.is_active,
         };
-        
-        // Update basic user info
+
         response = await ownerApi.updateUser(editingStaff.id, submitData);
-        
+
         if (!response.success) {
-          toast.error(response.message || 'Gagal mengupdate user', { id: loadingToast });
+          toast.error(response.message || "Gagal mengupdate user", { id: loadingToast });
           return;
         }
-        
-        // ✅ Jika ada password, update terpisah
-        if (formData.password && formData.password.trim() !== '') {
+
+        if (formData.password && formData.password.trim() !== "") {
           const passwordResponse = await ownerApi.resetPassword(
-            editingStaff.id, 
+            editingStaff.id,
             formData.password
           );
-          
+
           if (!passwordResponse.success) {
-            toast.error('User diupdate tapi password gagal diubah', { id: loadingToast });
+            toast.error("User diupdate tapi password gagal diubah", { id: loadingToast });
             return;
           }
         }
-        
-        toast.success('User berhasil diupdate!', { id: loadingToast });
-        
+
+        toast.success("User berhasil diupdate!", { id: loadingToast });
       } else {
-        // ✅ CREATE MODE - Data dengan password
         const submitData = {
           name: formData.name,
           email: formData.email,
           password: formData.password,
           role: formData.role,
-          is_active: true
+          is_active: true,
         };
-        
+
         response = await ownerApi.createUser(submitData);
-        
+
         if (!response.success) {
-          toast.error(response.message || 'Gagal membuat user', { id: loadingToast });
+          toast.error(response.message || "Gagal membuat user", { id: loadingToast });
           return;
         }
-        
-        toast.success('User berhasil dibuat!', { id: loadingToast });
+
+        toast.success("User berhasil dibuat!", { id: loadingToast });
       }
-      
-      // ✅ Reset form & close modal
+
       setShowAddModal(false);
       setEditingStaff(null);
       setFormData({
@@ -418,65 +407,55 @@ const AccountManagement = () => {
         role: "",
         is_active: true,
       });
-      
-      // ✅ Refresh list
+
       fetchStaff();
-      
     } catch (error) {
-      console.error('Error saving user:', error);
-      
-      // Handle specific error messages
-      const errorMessage = error.response?.data?.message 
-        || error.message 
-        || 'Gagal menyimpan user';
-      
+      console.error("Error saving user:", error);
+
+      const errorMessage = error.response?.data?.message || error.message || "Gagal menyimpan user";
+
       toast.error(errorMessage, { id: loadingToast });
     }
   };
 
   return (
     <div className="flex min-h-screen bg-cream-50">
-      <Toaster 
+      <Toaster
         position="top-right"
         toastOptions={{
           duration: 3000,
           style: {
-            background: '#fff',
-            color: '#363636',
+            background: "#fff",
+            color: "#363636",
           },
           success: {
             iconTheme: {
-              primary: '#10b981',
-              secondary: '#fff',
+              primary: "#10b981",
+              secondary: "#fff",
             },
           },
           error: {
             iconTheme: {
-              primary: '#ef4444',
-              secondary: '#fff',
+              primary: "#ef4444",
+              secondary: "#fff",
             },
           },
         }}
       />
-      
+
       <OwnerSidebar />
 
       <div
-        className={`
-        flex-1 transition-all duration-300
-        ${isCollapsed ? "lg:ml-20" : "lg:ml-64"}
-      `}
+        className={`flex-1 transition-all duration-300 ${
+          isCollapsed ? "lg:ml-20" : "lg:ml-64"
+        }`}
       >
         <div className="p-8 mt-16 lg:mt-0">
           {/* Header */}
           <div className="flex justify-between items-center mb-6">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">
-                Manajemen Akun
-              </h1>
-              <p className="text-gray-600 mt-1">
-                Kelola akun staff dan hak akses
-              </p>
+              <h1 className="text-3xl font-bold text-gray-900">Manajemen Akun</h1>
+              <p className="text-gray-600 mt-1">Kelola akun staff dan hak akses</p>
             </div>
             <button
               onClick={handleOpenModal}
@@ -495,27 +474,31 @@ const AccountManagement = () => {
             </div>
             <div className="card p-4">
               <p className="text-sm text-gray-600 mb-1">Aktif</p>
-              <p className="text-2xl font-bold text-green-600">
-                {stats.active}
-              </p>
+              <p className="text-2xl font-bold text-green-600">{stats.active}</p>
             </div>
             <div className="card p-4">
               <p className="text-sm text-gray-600 mb-1">Tidak Aktif</p>
-              <p className="text-2xl font-bold text-gray-600">
-                {stats.inactive}
-              </p>
+              <p className="text-2xl font-bold text-gray-600">{stats.inactive}</p>
             </div>
             <div className="card p-4">
               <p className="text-sm text-gray-600 mb-1">Kasir</p>
-              <p className="text-2xl font-bold text-blue-600">
-                {stats.kasir}
-              </p>
+              <p className="text-2xl font-bold text-blue-600">{stats.kasir}</p>
             </div>
             <div className="card p-4">
               <p className="text-sm text-gray-600 mb-1">Kitchen</p>
-              <p className="text-2xl font-bold text-orange-600">
-                {stats.kitchen}
-              </p>
+              <p className="text-2xl font-bold text-orange-600">{stats.kitchen}</p>
+            </div>
+
+            {/* Bar Staff Card */}
+            <div className="card p-4">
+              <p className="text-sm text-gray-600 mb-1">Bar</p>
+              <p className="text-2xl font-bold text-cyan-600">{stats.bar}</p>
+            </div>
+
+            {/* Pastry Staff Card */}
+            <div className="card p-4">
+              <p className="text-sm text-gray-600 mb-1">Pastry</p>
+              <p className="text-2xl font-bold text-pink-600">{stats.pastry}</p>
             </div>
           </div>
 
@@ -584,9 +567,9 @@ const AccountManagement = () => {
                 Tidak ada staff
               </h3>
               <p className="text-gray-500">
-                {searchQuery || filterRole !== 'all' || filterStatus !== 'all'
-                  ? 'Tidak ada staff dengan filter yang dipilih'
-                  : 'Tambahkan staff baru untuk memulai'}
+                {searchQuery || filterRole !== "all" || filterStatus !== "all"
+                  ? "Tidak ada staff dengan filter yang dipilih"
+                  : "Tambahkan staff baru untuk memulai"}
               </p>
             </div>
           ) : (

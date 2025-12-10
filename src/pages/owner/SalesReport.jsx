@@ -356,7 +356,7 @@ const SalesReport = () => {
                   loading={overviewLoading}
                 />
                 <MenuPerformanceTable
-                  data={overviewData?.data?.top_menus}
+                  data={menuData?.data?.menus}
                   loading={overviewLoading}
                 />
               </div>
