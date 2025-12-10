@@ -7,7 +7,7 @@ const TableQRModal = ({ table, onClose, onRegenerate, isRegenerating }) => {
   const [imageError, setImageError] = useState(false)
   const [qrDisplay, setQrDisplay] = useState(null)
 
-  const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'
+  const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'
 
   useEffect(() => {
     if (table) {

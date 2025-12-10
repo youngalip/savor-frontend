@@ -4,8 +4,8 @@ import { getDeviceId } from '../utils/deviceId';
 import { authStorage } from '../utils/authStorage';
 
 // Base configuration
-const BASE_URL = 'http://127.0.0.1:8000';
-const API_VERSION = 'v1';
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
+const API_VERSION = import.meta.env.VITE_API_VERSION || 'v1';
 
 // Axios instance
 const apiClient = axios.create({
